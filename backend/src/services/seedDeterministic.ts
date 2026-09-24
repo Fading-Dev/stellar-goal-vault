@@ -1,4 +1,4 @@
-import { getDb, initDb } from './db';
+import { ensureSeedWorkflowIndexes, getDb, initDb } from './db';
 
 const FIXED_NOW = 1_750_000_000;
 
@@ -160,6 +160,9 @@ function buildSeedSet(count: number): { campaigns: SeedCampaign[]; pledges: Seed
 export function seedDeterministicState(count: number = BASE_CAMPAIGNS.length): string[] {
   initDb();
   const db = getDb();
+  // Ensure seed-path indexes exist before wipe/reseed so FK checks and
+  // post-seed accounting queries use the intended plans.
+  ensureSeedWorkflowIndexes(db);
 
   const { campaigns, pledges } = buildSeedSet(count);
 
