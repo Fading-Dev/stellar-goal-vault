@@ -212,3 +212,88 @@ describe('seed workflow database regression', () => {
     expect(orphans).toEqual([]);
   });
 });
+
+describe('seed workflow query indexes', () => {
+  it('installs indexes used by wipe FK checks and accounting queries', () => {
+    const db = getDb();
+    const names = (
+      db
+        .prepare(
+          `SELECT name FROM sqlite_master
+           WHERE type = 'index'
+             AND name IN (
+               'idx_notifications_campaign_id',
+               'idx_pledges_campaign_refunded',
+               'idx_pledges_campaign_created_id',
+               'idx_campaigns_created_at'
+             )
+           ORDER BY name`,
+        )
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name);
+
+    expect(names).toEqual([
+      'idx_campaigns_created_at',
+      'idx_notifications_campaign_id',
+      'idx_pledges_campaign_created_id',
+      'idx_pledges_campaign_refunded',
+    ]);
+  });
+
+  it('uses idx_pledges_campaign_refunded for active pledge accounting plans', () => {
+    const db = getDb();
+    const plan = (
+      db
+        .prepare(
+          `EXPLAIN QUERY PLAN
+           SELECT COALESCE(SUM(amount), 0) AS total
+           FROM pledges
+           WHERE campaign_id = ? AND refunded_at IS NULL`,
+        )
+        .all('1') as Array<{ detail: string }>
+    )
+      .map((row) => row.detail)
+      .join(' | ');
+
+    expect(plan).toMatch(/idx_pledges_campaign_refunded|idx_pledges_campaign_id/i);
+  });
+
+  it('uses idx_notifications_campaign_id for campaign-scoped notification lookups', () => {
+    const db = getDb();
+    const plan = (
+      db
+        .prepare(
+          `EXPLAIN QUERY PLAN
+           SELECT id FROM notifications WHERE campaign_id = ?`,
+        )
+        .all('1') as Array<{ detail: string }>
+    )
+      .map((row) => row.detail)
+      .join(' | ');
+
+    expect(plan).toMatch(/idx_notifications_campaign_id/i);
+  });
+
+  it('keeps write behavior correct after indexed reseed', () => {
+    const ids = seedDeterministicState(4);
+    expect(ids).toEqual(['1', '2', '3', '4']);
+
+    const db = getDb();
+    const accounting = db
+      .prepare(
+        `SELECT c.id,
+                c.pledged_amount AS pledged,
+                COALESCE((
+                  SELECT SUM(p.amount) FROM pledges p
+                  WHERE p.campaign_id = c.id AND p.refunded_at IS NULL
+                ), 0) AS sum_pledges
+         FROM campaigns c
+         ORDER BY CAST(c.id AS INTEGER) ASC`,
+      )
+      .all() as Array<{ id: string; pledged: number; sum_pledges: number }>;
+
+    for (const row of accounting) {
+      expect(row.pledged).toBe(row.sum_pledges);
+    }
+  });
+});
