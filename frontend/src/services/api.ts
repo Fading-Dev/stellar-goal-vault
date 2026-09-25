@@ -161,27 +161,30 @@ export async function refundCampaign(
   return body.data;
 }
 
+const HISTORY_DEFAULT_PAGE_SIZE = 20;
+
+export async function getCampaignHistoryPage(
+  campaignId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<{ data: CampaignEvent[]; hasMore: boolean }> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? HISTORY_DEFAULT_PAGE_SIZE;
+  const body = await apiRequest<{ data: CampaignEvent[]; hasMore: boolean }>({
+    url: `/campaigns/${campaignId}/history`,
+    method: 'GET',
+    params: { page, pageSize },
+  });
+  // Backend returns in stable order; re-sort by timestamp/id to preserve ordering across chunks
+  const sorted = [...body.data].sort(
+    (left, right) => left.timestamp - right.timestamp || left.id - right.id,
+  );
+  return { data: sorted, hasMore: body.hasMore };
+}
+
 export async function getCampaignHistory(campaignId: string): Promise<CampaignEvent[]> {
-  const allEvents: CampaignEvent[] = [];
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore && page <= 50) {
-    const body = await apiRequest<{
-      data: CampaignEvent[];
-      hasMore: boolean;
-    }>({
-      url: `/campaigns/${campaignId}/history`,
-      method: 'GET',
-      params: { page, pageSize: 100 },
-    });
-
-    allEvents.push(...body.data);
-    hasMore = body.hasMore;
-    page += 1;
-  }
-
-  return allEvents.sort((left, right) => left.timestamp - right.timestamp || left.id - right.id);
+  // Bounded initial fetch for legacy callers; preserves ordering via getCampaignHistoryPage
+  const { data } = await getCampaignHistoryPage(campaignId, { page: 1, pageSize: HISTORY_DEFAULT_PAGE_SIZE });
+  return data;
 }
 
 export async function listOpenIssues(): Promise<OpenIssue[]> {

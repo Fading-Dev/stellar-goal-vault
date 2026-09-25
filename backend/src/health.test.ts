@@ -99,7 +99,7 @@ describe('GET /api/health', () => {
         lastKnownLedger: 1,
         isHealthy: true,
         consecutiveFailures: 0,
-        lagMs: 5000,,
+        lagMs: 5000,
         freshness: 'fresh',
         staleLagMs: 300000,
         freshLagMs: 30000
@@ -125,7 +125,7 @@ describe('GET /api/health', () => {
         lastKnownLedger: 1,
         isHealthy: true,
         consecutiveFailures: 0,
-        lagMs: 0,,
+        lagMs: 0,
         freshness: 'fresh',
         staleLagMs: 300000,
         freshLagMs: 30000
@@ -193,7 +193,7 @@ describe('GET /api/health', () => {
         lastKnownLedger: 42,
         isHealthy: true,
         consecutiveFailures: 0,
-        lagMs: 8000,,
+        lagMs: 8000,
         freshness: 'fresh',
         staleLagMs: 300000,
         freshLagMs: 30000
@@ -202,6 +202,60 @@ describe('GET /api/health', () => {
       const res = await request(app).get('/api/health');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
+    });
+
+    it('returns HTTP 200 for healthy-but-idle freshness (not stale)', async () => {
+      vi.spyOn(
+        await import('./services/db'),
+        'checkDbHealth',
+      ).mockReturnValue({ status: 'up', reachable: true });
+
+      vi.spyOn(
+        await import('./services/eventIndexer'),
+        'getIndexerStatus',
+      ).mockReturnValue({
+        lastSuccessfulPollTime: Date.now() - 60_000,
+        lastKnownLedger: 42,
+        isHealthy: true,
+        consecutiveFailures: 0,
+        lagMs: 60_000,
+        freshness: 'idle',
+        staleLagMs: 300000,
+        freshLagMs: 30000,
+      });
+
+      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('ok');
+      expect(res.body.indexer.freshness).toBe('idle');
+      expect(res.body.indexer.lagMs).toBe(60_000);
+    });
+
+    it('returns HTTP 503 when indexer freshness is stale', async () => {
+      vi.spyOn(
+        await import('./services/db'),
+        'checkDbHealth',
+      ).mockReturnValue({ status: 'up', reachable: true });
+
+      vi.spyOn(
+        await import('./services/eventIndexer'),
+        'getIndexerStatus',
+      ).mockReturnValue({
+        lastSuccessfulPollTime: Date.now() - 600_000,
+        lastKnownLedger: 42,
+        isHealthy: false,
+        consecutiveFailures: 0,
+        lagMs: 600_000,
+        freshness: 'stale',
+        staleLagMs: 300000,
+        freshLagMs: 30000,
+      });
+
+      const res = await request(app).get('/api/health');
+      expect(res.status).toBe(503);
+      expect(res.body.status).toBe('degraded');
+      expect(res.body.indexer.freshness).toBe('stale');
+      expect(res.body.indexer.isHealthy).toBe(false);
     });
   });
 
@@ -310,7 +364,7 @@ describe('GET /api/health/deep', () => {
         lastKnownLedger: 10,
         isHealthy: true,
         consecutiveFailures: 0,
-        lagMs: 1000,,
+        lagMs: 1000,
         freshness: 'fresh',
         staleLagMs: 300000,
         freshLagMs: 30000
