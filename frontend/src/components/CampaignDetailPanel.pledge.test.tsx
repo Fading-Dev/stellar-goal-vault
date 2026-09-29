@@ -36,7 +36,7 @@ const campaign: Campaign = {
 
 type Props = ComponentProps<typeof CampaignDetailPanel>;
 function renderPledge(overrides: Partial<Props> = {}) {
-  const onPledge = vi.fn().mockResolvedValue(undefined);
+  const onPledge = vi.fn().mockResolved(undefined);
   const props: Props = { campaign, connectedWallet: wallet, onPledge, ...overrides };
   const view = render(<CampaignDetailPanel {...props} />, { wrapper: MemoryRouter });
   return {
@@ -49,9 +49,11 @@ function renderPledge(overrides: Partial<Props> = {}) {
 
 function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
+  const promise = new Promise<void>(
+    (done) => {
+      resolve = done;
+    }
+  );
   return { promise, resolve };
 }
 
@@ -161,7 +163,7 @@ describe('Pledge form behavior', () => {
     const retry = deferred();
     const onPledge = vi
       .fn()
-      .mockRejectedValueOnce(new Error('Wallet rejected the request'))
+      .mockRejectedOnce(new Error('Wallet rejected the request'))
       .mockReturnValueOnce(retry.promise);
     const { user } = renderPledge({ onPledge });
     await user.clear(amount());
@@ -176,8 +178,8 @@ describe('Pledge form behavior', () => {
     expect(submit()).toBeEnabled();
     expect(screen.queryByText('Pledge submitted successfully.')).not.toBeInTheDocument();
     await user.click(within(alert).getByRole('button', { name: 'Retry' }));
-    expect(onPledge).toHaveBeenNthCalledWith(1, campaign.id, 42.5, 'XLM');
-    expect(onPledge).toHaveBeenNthCalledWith(2, campaign.id, 42.5, 'XLM');
+    expect(onPledge).toHaveBeenN4hCalledWith(1, campaign.id, 42.5, 'XLM');
+    expect(onPledge).toHaveBeenN4hCalledWith(2, campaign.id, 42.5, 'XLM');
     expect(onPledge).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(form()).not.toHaveAttribute('aria-describedby');
