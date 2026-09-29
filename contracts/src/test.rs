@@ -1,11 +1,10 @@
-
 #[cfg(test)]
 mod tests {
-use soroban_sdk::{
-    testutils::{Address as _, Ledger},
-    token::{Client as TokenClient, StellarAssetClient},
-    Address, Env, String,
-};
+    use soroban_sdk::{
+        testutils::{Address as _, Ledger},
+        token::{Client as TokenClient, StellarAssetClient},
+        Address, Env, String,
+    };
 
     use crate::{StellarGoalVaultContract, StellarGoalVaultContractClient};
 
@@ -56,6 +55,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "cap above target"),
             &1_001_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -78,6 +79,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "cap equals target"),
             &1_000_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         assert_eq!(client.get_campaign(&campaign_id).target_amount, 1_000);
@@ -102,6 +105,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "fake token"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -126,6 +131,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &long_meta,
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -148,6 +155,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &exact_meta,
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         assert_eq!(client.get_campaign(&campaign_id).metadata.len(), 500);
@@ -179,6 +188,8 @@ use soroban_sdk::{
                 &(env.ledger().timestamp() + 1_000),
                 &long_meta,
                 &0_i128,
+                &soroban_sdk::vec![&env],
+                &0_u32,
             );
         }));
         assert!(result.is_err(), "creation must be rejected");
@@ -193,6 +204,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "after rejected create"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         assert_eq!(campaign_id, 1);
     }
@@ -222,6 +235,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "count before dedup"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -252,6 +267,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "cap enforcement test"),
             &600_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token_id, &400);
@@ -279,6 +296,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "cap boundary test"),
             &500_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         // Exactly at the cap: 300 + 200 = 500 must be accepted.
@@ -306,13 +325,14 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "over cap enforcement"),
             &500_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &400);
         // 400 + 101 = 501 > cap 500.
         client.contribute(&campaign_id, &contributor, &token, &101);
     }
-
 
     #[test]
     fn test_claim_success() {
@@ -338,6 +358,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "test campaign"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -374,6 +396,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "mismatch test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -404,6 +428,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "early claim test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -434,6 +460,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "underfunded test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &(target / 2));
@@ -465,6 +493,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "double claim test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -496,6 +526,8 @@ use soroban_sdk::{
             &deadline,
             &meta("c1"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         assert_eq!(client.get_campaign_count(), 1);
         assert_eq!(client.get_next_campaign_id(), 1);
@@ -507,6 +539,8 @@ use soroban_sdk::{
             &deadline,
             &meta("c2"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         assert_eq!(client.get_campaign_count(), 2);
 
@@ -517,6 +551,8 @@ use soroban_sdk::{
             &deadline,
             &meta("c3"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -537,6 +573,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "count zero test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         assert_eq!(client.get_contributor_count(&campaign_id), 0);
@@ -561,6 +599,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "single contributor test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &500);
@@ -594,6 +634,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "multi contributor test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor1, &token_id, &200);
@@ -630,6 +672,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "max tokens test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -655,6 +699,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "exactly 10 tokens"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         let campaign = client.get_campaign(&campaign_id);
@@ -731,12 +777,14 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "pause test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.set_paused(&admin, &true);
         client.contribute(&campaign_id, &contributor, &token, &500);
     }
-    
+
     #[test]
     #[should_panic(expected = "contract is paused")]
     fn test_create_campaign_blocked_when_paused() {
@@ -758,6 +806,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "paused create should fail"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -782,6 +832,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "unpaused create ok"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         let campaign = client.get_campaign(&campaign_id);
@@ -812,6 +864,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "pause claim test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.contribute(&campaign_id, &contributor, &token, &1_000);
         advance_time(&env, deadline_offset + 1);
@@ -840,6 +894,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "pause refund test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.contribute(&campaign_id, &contributor, &token, &500);
         advance_time(&env, deadline_offset + 1);
@@ -866,6 +922,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "pause cancel test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.set_paused(&admin, &true);
@@ -889,6 +947,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "read when paused"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.set_paused(&admin, &true);
 
@@ -916,6 +976,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "cancel test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.cancel_campaign(&campaign_id, &creator);
         assert!(client.get_campaign(&campaign_id).canceled);
@@ -940,6 +1002,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "cancel mismatch test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         // attacker tries to cancel — must panic with "creator mismatch"
         client.cancel_campaign(&campaign_id, &attacker);
@@ -967,6 +1031,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "cancel claimed test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.contribute(&campaign_id, &contributor, &token, &target);
         advance_time(&env, deadline_offset + 1);
@@ -994,6 +1060,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "double cancel test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.cancel_campaign(&campaign_id, &creator);
         // second cancel must panic
@@ -1023,6 +1091,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "cancel refund test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
         client.contribute(&campaign_id, &contributor, &token, &pledge_amount);
 
@@ -1058,6 +1128,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "repeat pledge test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         // Same contributor pledges twice — count must stay at 1
@@ -1067,7 +1139,6 @@ use soroban_sdk::{
         client.contribute(&campaign_id, &contributor, &token, &300);
         assert_eq!(client.get_contributor_count(&campaign_id), 1);
     }
-
 
     #[test]
     fn test_contributor_count_no_double_count_multiple_tokens() {
@@ -1089,6 +1160,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "multiple tokens pledge test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         // Contributor pledges with token1
@@ -1141,6 +1214,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "boundary test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &99);
@@ -1164,6 +1239,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "boundary accept test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         // Exactly 100 must succeed
@@ -1192,6 +1269,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "custom min test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         // 499 is below the custom minimum of 500
@@ -1217,6 +1296,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "custom min accept test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &500);
@@ -1242,6 +1323,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "original metadata"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.update_metadata(
@@ -1251,7 +1334,10 @@ use soroban_sdk::{
         );
 
         let campaign = client.get_campaign(&campaign_id);
-        assert_eq!(campaign.metadata, String::from_str(&env, "updated metadata"));
+        assert_eq!(
+            campaign.metadata,
+            String::from_str(&env, "updated metadata")
+        );
     }
 
     #[test]
@@ -1273,13 +1359,11 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "original metadata"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
-        client.update_metadata(
-            &campaign_id,
-            &attacker,
-            &String::from_str(&env, "hacked"),
-        );
+        client.update_metadata(&campaign_id, &attacker, &String::from_str(&env, "hacked"));
     }
 
     #[test]
@@ -1301,15 +1385,13 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "original metadata"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         advance_time(&env, deadline_offset + 1);
 
-        client.update_metadata(
-            &campaign_id,
-            &creator,
-            &String::from_str(&env, "too late"),
-        );
+        client.update_metadata(&campaign_id, &creator, &String::from_str(&env, "too late"));
     }
 
     #[test]
@@ -1330,6 +1412,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "original metadata"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.cancel_campaign(&campaign_id, &creator);
@@ -1361,6 +1445,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "extension test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &500);
@@ -1394,6 +1480,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "extension test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         let new_deadline = env.ledger().timestamp() + deadline_offset + 500;
@@ -1419,6 +1507,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "extension max test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &500);
@@ -1453,6 +1543,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "majority test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor1, &token_id, &300);
@@ -1504,6 +1596,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "double vote test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor1, &token_id, &200);
@@ -1538,6 +1632,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "claimed extension test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &1_000);
@@ -1546,6 +1642,613 @@ use soroban_sdk::{
 
         let new_deadline = env.ledger().timestamp() + 500;
         client.request_deadline_extension(&campaign_id, &contributor, &new_deadline);
+    }
+
+    // ── multi-sig campaign approval tests (co-creators) ────────────────────────
+
+    #[test]
+    fn test_create_campaign_with_co_creators_success() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let co_creator2 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "multi-sig test"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone(), co_creator2.clone()],
+            &2_u32,
+        );
+
+        let campaign = client.get_campaign(&campaign_id);
+        assert_eq!(campaign.co_creators.len(), 2);
+        assert_eq!(campaign.approval_threshold, 2);
+        assert!(campaign.co_creators.iter().any(|a| a == co_creator1));
+        assert!(campaign.co_creators.iter().any(|a| a == co_creator2));
+    }
+
+    #[test]
+    fn test_create_campaign_with_co_creators_get_co_creators() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let co_creator2 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "multi-sig test"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone(), co_creator2.clone()],
+            &2_u32,
+        );
+
+        let co_creators = client.get_co_creators(&campaign_id);
+        assert_eq!(co_creators.len(), 2);
+        assert!(co_creators.iter().any(|a| a == co_creator1));
+        assert!(co_creators.iter().any(|a| a == co_creator2));
+    }
+
+    #[test]
+    fn test_create_campaign_with_co_creators_is_not_approved_initially() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "multi-sig test"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        assert!(!client.is_campaign_approved(&campaign_id));
+        assert_eq!(client.get_campaign_approvals(&campaign_id), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "approval_threshold must be > 0 when co_creators provided")]
+    fn test_create_campaign_rejects_zero_threshold_with_co_creators() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "bad threshold"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &0_u32,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "approval_threshold cannot exceed number of co_creators")]
+    fn test_create_campaign_rejects_threshold_exceeds_co_creators() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "bad threshold"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &2_u32,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "co_creators must not be empty when approval_threshold > 0")]
+    fn test_create_campaign_rejects_threshold_without_co_creators() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "bad threshold"),
+            &0_i128,
+            &soroban_sdk::vec![&env],
+            &1_u32,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "creator cannot be a co-creator")]
+    fn test_create_campaign_rejects_creator_as_co_creator() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "creator as co-creator"),
+            &0_i128,
+            &soroban_sdk::vec![&env, creator.clone()],
+            &1_u32,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "duplicate co-creator addresses")]
+    fn test_create_campaign_rejects_duplicate_co_creators() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "dup co-creators"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone(), co_creator1.clone()],
+            &1_u32,
+        );
+    }
+
+    #[test]
+    fn test_approve_campaign_success_meets_threshold() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let co_creator2 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "multi-sig test"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone(), co_creator2.clone()],
+            &2_u32,
+        );
+
+        // First approval (1/2)
+        client.approve_campaign(&campaign_id, &co_creator1);
+        assert!(!client.is_campaign_approved(&campaign_id));
+        assert_eq!(client.get_campaign_approvals(&campaign_id), 1);
+
+        // Second approval (2/2) - threshold met
+        client.approve_campaign(&campaign_id, &co_creator2);
+        assert!(client.is_campaign_approved(&campaign_id));
+        assert_eq!(client.get_campaign_approvals(&campaign_id), 2);
+    }
+
+    #[test]
+    fn test_approve_campaign_success_single_co_creator() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "single co-creator"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        client.approve_campaign(&campaign_id, &co_creator1);
+        assert!(client.is_campaign_approved(&campaign_id));
+        assert_eq!(client.get_campaign_approvals(&campaign_id), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "campaign does not require approval")]
+    fn test_approve_campaign_rejects_non_multi_sig_campaign() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "single creator"),
+            &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
+        );
+
+        let stranger = Address::generate(&env);
+        client.approve_campaign(&campaign_id, &stranger);
+    }
+
+    #[test]
+    #[should_panic(expected = "approver is not a co-creator")]
+    fn test_approve_campaign_rejects_non_co_creator() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let stranger = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "multi-sig test"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        client.approve_campaign(&campaign_id, &stranger);
+    }
+
+    #[test]
+    #[should_panic(expected = "already approved")]
+    fn test_approve_campaign_rejects_double_approval() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "multi-sig test"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        client.approve_campaign(&campaign_id, &co_creator1);
+        client.approve_campaign(&campaign_id, &co_creator1);
+    }
+
+    #[test]
+    #[should_panic(expected = "campaign already finalized")]
+    fn test_approve_campaign_rejects_claimed_campaign() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let contributor = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let client = deploy_contract(&env);
+
+        // Create a separate token with sufficient balance for the multi-sig campaign
+        let token = deploy_token(&env, &admin, &contributor, 2_000);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 100),
+            &String::from_str(&env, "claimed multi-sig"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        // Approve it first
+        client.approve_campaign(&campaign_id, &co_creator1);
+        client.contribute(&campaign_id, &contributor, &token, &1_000);
+        env.ledger().with_mut(|l| l.timestamp += 101);
+        client.claim(&campaign_id, &creator);
+
+        // Now try to approve again (already claimed)
+        client.approve_campaign(&campaign_id, &co_creator1);
+    }
+
+    #[test]
+    #[should_panic(expected = "campaign already finalized")]
+    fn test_approve_campaign_rejects_canceled_campaign() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "canceled campaign"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        client.cancel_campaign(&campaign_id, &creator);
+        client.approve_campaign(&campaign_id, &co_creator1);
+    }
+
+    #[test]
+    #[should_panic(expected = "campaign not approved")]
+    fn test_contribute_blocked_when_not_approved() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let contributor = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &contributor, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "needs approval"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        // Campaign not approved yet - contribute should fail
+        client.contribute(&campaign_id, &contributor, &token, &500);
+    }
+
+    #[test]
+    fn test_contribute_allowed_after_approval() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let contributor = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &contributor, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "needs approval"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        // Approve first
+        client.approve_campaign(&campaign_id, &co_creator1);
+
+        // Now contribute should work
+        client.contribute(&campaign_id, &contributor, &token, &500);
+        assert_eq!(client.get_campaign(&campaign_id).pledged_amount, 500);
+    }
+
+    #[test]
+    #[should_panic(expected = "campaign not approved")]
+    fn test_claim_blocked_when_not_approved() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let contributor = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &contributor, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 100),
+            &String::from_str(&env, "needs approval"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        client.contribute(&campaign_id, &contributor, &token, &1_000);
+        env.ledger().with_mut(|l| l.timestamp += 101);
+
+        // Campaign not approved - claim should fail
+        client.claim(&campaign_id, &creator);
+    }
+
+    #[test]
+    fn test_claim_allowed_after_approval() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let co_creator1 = Address::generate(&env);
+        let contributor = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &contributor, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 100),
+            &String::from_str(&env, "needs approval"),
+            &0_i128,
+            &soroban_sdk::vec![&env, co_creator1.clone()],
+            &1_u32,
+        );
+
+        // Approve FIRST, then contribute
+        client.approve_campaign(&campaign_id, &co_creator1);
+        client.contribute(&campaign_id, &contributor, &token, &1_000);
+        env.ledger().with_mut(|l| l.timestamp += 101);
+
+        client.claim(&campaign_id, &creator);
+
+        assert!(client.get_campaign(&campaign_id).claimed);
+    }
+
+    #[test]
+    fn test_is_campaign_approved_backward_compatible() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        // Single-creator campaign (no co-creators) should be auto-approved
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "single creator"),
+            &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
+        );
+
+        assert!(client.is_campaign_approved(&campaign_id));
+        assert_eq!(client.get_campaign_approvals(&campaign_id), 0);
+    }
+
+    #[test]
+    fn test_get_campaign_approvals_returns_zero_for_non_multi_sig() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "single creator"),
+            &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
+        );
+
+        assert_eq!(client.get_campaign_approvals(&campaign_id), 0);
+    }
+
+    #[test]
+    fn test_get_co_creators_returns_empty_for_non_multi_sig() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &1_000_i128,
+            &(env.ledger().timestamp() + 1_000),
+            &String::from_str(&env, "single creator"),
+            &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
+        );
+
+        let co_creators = client.get_co_creators(&campaign_id);
+        assert_eq!(co_creators.len(), 0);
     }
 
     // ── platform fee tests ────────────────────────────────────────────────────
@@ -1643,6 +2346,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "fee test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -1688,6 +2393,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "zero fee test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -1727,6 +2434,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "no recipient test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -1766,6 +2475,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "fee event test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -1806,6 +2517,8 @@ use soroban_sdk::{
             &deadline,
             &String::from_str(&env, "no fee event test"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &target);
@@ -1817,7 +2530,6 @@ use soroban_sdk::{
         assert_eq!(token_client.balance(&creator), 1_000);
         assert_eq!(token_client.balance(&fee_recipient), 0);
     }
-
 
     // --- Failure-path coverage (issue #989) ---
     // Invalid input, missing data, duplicate actions, deadline/timeout, and
@@ -1841,6 +2553,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "zero target"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -1863,6 +2577,8 @@ use soroban_sdk::{
             &now,
             &String::from_str(&env, "past deadline"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -1886,6 +2602,8 @@ use soroban_sdk::{
             &excessive,
             &String::from_str(&env, "too long"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -1905,6 +2623,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "no tokens"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -1926,6 +2646,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "dup tokens"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -1947,6 +2669,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "neg cap"),
             &(-1_i128),
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
     }
 
@@ -1979,6 +2703,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "over target"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &1_001);
@@ -2004,6 +2730,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + 1_000),
             &String::from_str(&env, "wrong token"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &other, &500);
@@ -2029,6 +2757,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "late pledge"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         advance_time(&env, deadline_offset + 1);
@@ -2055,6 +2785,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "funded no refund"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &1_000);
@@ -2083,6 +2815,8 @@ use soroban_sdk::{
             &(env.ledger().timestamp() + deadline_offset),
             &String::from_str(&env, "no pledge refund"),
             &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
         );
 
         client.contribute(&campaign_id, &contributor, &token, &500);
@@ -2090,7 +2824,6 @@ use soroban_sdk::{
         // Stranger never pledged — nothing to refund.
         client.refund(&campaign_id, &stranger);
     }
-
 
     #[test]
     #[should_panic(expected = "fee must be non-negative")]
@@ -2103,6 +2836,4 @@ use soroban_sdk::{
         client.initialize(&admin, &100_i128);
         client.set_fee(&admin, &(-1_i128));
     }
-
-
 }
