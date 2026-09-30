@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use soroban_sdk::{
-        testutils::{Address as _, Ledger},
+        testutils::{Address as _, Events as _, Ledger},
         token::{Client as TokenClient, StellarAssetClient},
         Address, Env, String,
     };
@@ -160,6 +160,66 @@ mod tests {
         );
 
         assert_eq!(client.get_campaign(&campaign_id).metadata.len(), 500);
+    }
+
+    #[test]
+    fn test_create_campaign_emits_structured_event() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let deadline = env.ledger().timestamp() + 1_000;
+        let campaign_id = client.create_campaign(
+            &creator,
+            &soroban_sdk::vec![&env, token.clone()],
+            &500_i128,
+            &deadline,
+            &String::from_str(&env, "event test"),
+            &0_i128,
+            &soroban_sdk::vec![&env],
+            &0_u32,
+        );
+
+        assert_eq!(campaign_id, 1);
+        let events = env.events().all();
+        assert!(
+            !events.is_empty(),
+            "campaign creation must emit an event"
+        );
+    }
+
+    #[test]
+    fn test_create_campaign_rejection_emits_no_event() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let creator = Address::generate(&env);
+        let admin = Address::generate(&env);
+        let token = deploy_token(&env, &admin, &creator, 1_000);
+        let client = deploy_contract(&env);
+
+        let long_meta = oversized_metadata(&env, 501);
+        let result = crate::std::panic::catch_unwind(crate::std::panic::AssertUnwindSafe(|| {
+            client.create_campaign(
+                &creator,
+                &soroban_sdk::vec![&env, token.clone()],
+                &500_i128,
+                &(env.ledger().timestamp() + 1_000),
+                &long_meta,
+                &0_i128,
+                &soroban_sdk::vec![&env],
+                &0_u32,
+            );
+        }));
+        assert!(result.is_err(), "creation must be rejected");
+        assert!(
+            env.events().all().is_empty(),
+            "failed creation must not emit a success event"
+        );
     }
 
     #[test]

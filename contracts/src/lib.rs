@@ -217,6 +217,26 @@ pub struct CampaignCreated {
     pub metadata: String,
 }
 
+/// Emitted when a campaign is created, with stable fields for off-chain
+/// indexers. Mirrors [`CampaignCreated`] but exposes the full accepted-token
+/// list and the per-contributor cap so indexers can reconstruct campaign
+/// state without additional reads. Sensitive data (none exists here) is not
+/// duplicated.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CampaignCreatedEvent {
+    pub campaign_id: u64,
+    pub creator: Address,
+    pub accepted_tokens: Vec<Address>,
+    pub target_amount: i128,
+    pub deadline: u64,
+    pub metadata: String,
+    pub max_per_contributor: i128,
+    pub co_creators: Vec<Address>,
+    pub approval_threshold: u32,
+    pub created_at: u64,
+}
+
 /// Emitted when a campaign receives its final required approval and goes live.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -567,6 +587,27 @@ impl StellarGoalVaultContract {
                 target_amount,
                 deadline,
                 metadata,
+            },
+        );
+
+        // Structured creation event for off-chain indexers. Emitted only after
+        // all storage writes succeed, so a failed transaction never produces a
+        // misleading success event. Uses a distinct topic ("Created") so
+        // indexers can subscribe without ambiguity with the legacy "Create"
+        // event above.
+        env.events().publish(
+            (symbol_short!("Goal"), symbol_short!("Created")),
+            CampaignCreatedEvent {
+                campaign_id: next_id,
+                creator: campaign.creator.clone(),
+                accepted_tokens: campaign.accepted_tokens.clone(),
+                target_amount: campaign.target_amount,
+                deadline: campaign.deadline,
+                metadata: campaign.metadata.clone(),
+                max_per_contributor,
+                co_creators: campaign.co_creators.clone(),
+                approval_threshold: campaign.approval_threshold,
+                created_at: campaign.created_at,
             },
         );
 
