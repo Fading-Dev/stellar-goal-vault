@@ -1537,6 +1537,86 @@ tbody tr:hover td {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
+}
+
+/* Mobile-specific improvements for pledge flow */
+@media (max-width: 640px) {
+  .form-grid {
+    gap: 16px;
+  }
+
+  .form-field input,
+  .form-field textarea,
+  .form-field select {
+    min-height: 48px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .form-actions button {
+    min-height: 48px;
+    width: 100%;
+    font-size: 1rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .wallet-status {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .wallet-connected {
+    align-items: stretch;
+  }
+
+  .wallet-connected button {
+    width: 100%;
+  }
+
+  .campaign-detail-banner {
+    width: calc(100% + 2.5rem);
+    margin: -40px -20px 1.5rem;
+    height: 200px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .detail-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .detail-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-field label {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .form-field small {
+    font-size: 0.8rem;
+  }
+
+  .section-heading h2 {
+    font-size: 1.3rem;
+  }
+
+  .detail-stat {
+    padding: 14px;
+  }
+}: 16px;
   margin-bottom: 60px;
 }
 
