@@ -34,10 +34,7 @@ import { getDb, initDb, resetDbForTests } from './index';
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-const TEST_DB = path.join(
-  '/tmp',
-  `sgv-pledges-persistence-876-${process.pid}-${Date.now()}.db`,
-);
+const TEST_DB = path.join('/tmp', `sgv-pledges-persistence-876-${process.pid}-${Date.now()}.db`);
 
 function removeTestDb(dbPath: string = TEST_DB): void {
   for (const suffix of ['', '-wal', '-shm']) {
@@ -198,9 +195,9 @@ describe('pledges persistence — DB-level constraints (#876)', () => {
     insertPledge(db, { transactionHash: txHash, createdAt: now - 10 });
 
     // Second insert with same hash must fail
-    expect(() =>
-      insertPledge(db, { transactionHash: txHash, createdAt: now }),
-    ).toThrow(/UNIQUE constraint failed/i);
+    expect(() => insertPledge(db, { transactionHash: txHash, createdAt: now })).toThrow(
+      /UNIQUE constraint failed/i,
+    );
   });
 
   it('allows multiple pledges with NULL transaction_hash (partial index only covers non-NULL)', () => {
@@ -215,9 +212,9 @@ describe('pledges persistence — DB-level constraints (#876)', () => {
     }).not.toThrow();
 
     const count = (
-      db
-        .prepare(`SELECT COUNT(*) AS n FROM pledges WHERE transaction_hash IS NULL`)
-        .get() as { n: number }
+      db.prepare(`SELECT COUNT(*) AS n FROM pledges WHERE transaction_hash IS NULL`).get() as {
+        n: number;
+      }
     ).n;
     expect(count).toBe(2);
   });
@@ -240,9 +237,9 @@ describe('pledges persistence — transaction rollback (#876)', () => {
     const now = Math.floor(Date.now() / 1000);
 
     const balanceBefore = (
-      db
-        .prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`)
-        .get() as { pledged_amount: number }
+      db.prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`).get() as {
+        pledged_amount: number;
+      }
     ).pledged_amount;
 
     expect(() => {
@@ -266,15 +263,17 @@ describe('pledges persistence — transaction rollback (#876)', () => {
 
     // Pledge row must not exist
     const pledgeCount = (
-      db.prepare(`SELECT COUNT(*) AS n FROM pledges WHERE campaign_id = 'c1'`).get() as { n: number }
+      db.prepare(`SELECT COUNT(*) AS n FROM pledges WHERE campaign_id = 'c1'`).get() as {
+        n: number;
+      }
     ).n;
     expect(pledgeCount).toBe(0);
 
     // Campaign balance must be unchanged
     const balanceAfter = (
-      db
-        .prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`)
-        .get() as { pledged_amount: number }
+      db.prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`).get() as {
+        pledged_amount: number;
+      }
     ).pledged_amount;
     expect(balanceAfter).toBe(balanceBefore);
   });
@@ -289,9 +288,7 @@ describe('pledges persistence — transaction rollback (#876)', () => {
     db.prepare(`UPDATE campaigns SET pledged_amount = 75 WHERE id = 'c1'`).run();
 
     const pledgeId = (
-      db
-        .prepare(`SELECT id FROM pledges WHERE campaign_id = 'c1' LIMIT 1`)
-        .get() as { id: number }
+      db.prepare(`SELECT id FROM pledges WHERE campaign_id = 'c1' LIMIT 1`).get() as { id: number }
     ).id;
 
     expect(() => {
@@ -312,17 +309,17 @@ describe('pledges persistence — transaction rollback (#876)', () => {
 
     // Pledge must still have no refunded_at
     const refundedAt = (
-      db
-        .prepare(`SELECT refunded_at FROM pledges WHERE id = ?`)
-        .get(pledgeId) as { refunded_at: number | null }
+      db.prepare(`SELECT refunded_at FROM pledges WHERE id = ?`).get(pledgeId) as {
+        refunded_at: number | null;
+      }
     ).refunded_at;
     expect(refundedAt).toBeNull();
 
     // Campaign balance must be restored
     const balance = (
-      db
-        .prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`)
-        .get() as { pledged_amount: number }
+      db.prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`).get() as {
+        pledged_amount: number;
+      }
     ).pledged_amount;
     expect(balance).toBe(75);
   });
@@ -341,26 +338,24 @@ describe('pledges persistence — transaction rollback (#876)', () => {
     }).toThrow();
 
     // No pledge rows should exist
-    expect(
-      (db.prepare(`SELECT COUNT(*) AS n FROM pledges`).get() as { n: number }).n,
-    ).toBe(0);
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM pledges`).get() as { n: number }).n).toBe(0);
 
     // Retry succeeds without error
     expect(() => {
       db.transaction(() => {
         insertPledge(db, { amount: 40, createdAt: now });
-        db.prepare(`UPDATE campaigns SET pledged_amount = pledged_amount + 40 WHERE id = 'c1'`).run();
+        db.prepare(
+          `UPDATE campaigns SET pledged_amount = pledged_amount + 40 WHERE id = 'c1'`,
+        ).run();
       })();
     }).not.toThrow();
 
-    expect(
-      (db.prepare(`SELECT COUNT(*) AS n FROM pledges`).get() as { n: number }).n,
-    ).toBe(1);
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM pledges`).get() as { n: number }).n).toBe(1);
 
     const balance = (
-      db
-        .prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`)
-        .get() as { pledged_amount: number }
+      db.prepare(`SELECT pledged_amount FROM campaigns WHERE id = 'c1'`).get() as {
+        pledged_amount: number;
+      }
     ).pledged_amount;
     expect(balance).toBe(40);
   });
@@ -436,9 +431,7 @@ describe('pledges persistence — ordered reads (#876)', () => {
     insertPledge(db, { contributor: 'GCAROL', amount: 20, createdAt: now });
 
     // Refund Alice's pledge
-    db.prepare(
-      `UPDATE pledges SET refunded_at = ? WHERE contributor = 'GALICE'`,
-    ).run(now);
+    db.prepare(`UPDATE pledges SET refunded_at = ? WHERE contributor = 'GALICE'`).run(now);
 
     const activeRows = db
       .prepare(
@@ -509,9 +502,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
         .run(now),
     ).not.toThrow();
 
-    const stored = db
-      .prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { amount: number };
+    const stored = db.prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      amount: number;
+    };
     expect(stored.amount).toBe(0);
   });
 
@@ -529,9 +522,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
         .run(now),
     ).not.toThrow();
 
-    const stored = db
-      .prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { amount: number };
+    const stored = db.prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      amount: number;
+    };
     expect(stored.amount).toBe(-50);
   });
 
@@ -543,9 +536,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
 
     insertPledge(db, { amount: precise, createdAt: now });
 
-    const stored = db
-      .prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { amount: number };
+    const stored = db.prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      amount: number;
+    };
 
     // SQLite REAL (IEEE 754 double) should round-trip without truncation at
     // normal pledge precisions.
@@ -560,9 +553,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
 
     insertPledge(db, { contributor: unicodeContributor, amount: 10, createdAt: now });
 
-    const row = db
-      .prepare(`SELECT contributor FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { contributor: string };
+    const row = db.prepare(`SELECT contributor FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      contributor: string;
+    };
 
     expect(row.contributor).toBe(unicodeContributor);
   });
@@ -575,9 +568,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
 
     insertPledge(db, { assetCode: unicodeAsset, amount: 5, createdAt: now });
 
-    const row = db
-      .prepare(`SELECT asset_code FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { asset_code: string };
+    const row = db.prepare(`SELECT asset_code FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      asset_code: string;
+    };
 
     expect(row.asset_code).toBe(unicodeAsset);
   });
@@ -598,9 +591,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
         .run(now),
     ).not.toThrow();
 
-    const stored = db
-      .prepare(`SELECT contributor FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { contributor: string };
+    const stored = db.prepare(`SELECT contributor FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      contributor: string;
+    };
     expect(stored.contributor).toBe('');
   });
 
@@ -612,9 +605,9 @@ describe('pledges persistence — edge-case data (#876)', () => {
 
     insertPledge(db, { amount: huge, createdAt: now });
 
-    const stored = db
-      .prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`)
-      .get() as { amount: number };
+    const stored = db.prepare(`SELECT amount FROM pledges WHERE campaign_id = 'c1'`).get() as {
+      amount: number;
+    };
 
     // SQLite stores as IEEE 754 double; value may lose precision beyond 2^53
     // but must not error or produce a wildly different value.

@@ -61,7 +61,11 @@ describe.each(THEMES)('TransactionPreviewModal Accessibility (%s theme)', (theme
   it('supports keyboard activation of the confirm action', () => {
     const onConfirm = vi.vitest.fn();
     render(
-      <TransactionPreviewModal preview={previewWithFee} onConfirm={onConfirm} onCancel={() => {}} />,
+      <TransactionPreviewModal
+        preview={previewWithFee}
+        onConfirm={onConfirm}
+        onCancel={() => {}}
+      />,
     );
 
     const confirmButton = screen.getByRole('button', { name: /confirm/i });

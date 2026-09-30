@@ -49,11 +49,9 @@ function renderPledge(overrides: Partial<Props> = {}) {
 
 function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>(
-    (done) => {
-      resolve = done;
-    }
-  );
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -211,10 +209,10 @@ describe('Pledge form behavior', () => {
       const { user } = renderPledge({ onPledge: vi.fn().mockRejectedValue(error) });
       await user.click(submit());
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'The pledge could not be completed. Please try again.'
+        'The pledge could not be completed. Please try again.',
       );
       expect(submit()).toBeEnabled();
-    }
+    },
   );
 
   it('disables pledging without a wallet and enables it after connecting', async () => {
@@ -253,7 +251,7 @@ describe('Pledge form behavior', () => {
     const { onPledge } = renderPledge({ isLoading: true });
     expect(screen.getByRole('region', { name: 'Loading campaign details' })).toHaveAttribute(
       'aria-busy',
-      'true'
+      'true',
     );
     expect(screen.queryByRole('form', { name: 'Pledge campaign' })).not.toBeInTheDocument();
     expect(onPledge).not.toHaveBeenCalled();

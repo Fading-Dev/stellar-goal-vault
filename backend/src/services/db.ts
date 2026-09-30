@@ -7,11 +7,7 @@ import {
   loadMigrations,
   markMigrationsApplied,
 } from '../db/migrator';
-import {
-  isLegacyDatabase,
-  LEGACY_BASELINE_VERSION,
-  upgradeLegacySchema,
-} from '../db/legacySchema';
+import { isLegacyDatabase, LEGACY_BASELINE_VERSION, upgradeLegacySchema } from '../db/legacySchema';
 
 export type SQLiteDatabase = ReturnType<typeof Database>;
 
@@ -142,7 +138,6 @@ export function getPledgesByContributor(
   return rows;
 }
 
-
 /**
  * Install campaigns-persistence integrity enforcement for existing databases.
  *
@@ -150,9 +145,7 @@ export function getPledgesByContributor(
  * freshly created schemas. Triggers mirror the same safe invariant subset for
  * databases that already exist, without requiring a destructive rebuild.
  */
-export function ensureCampaignsIntegrityConstraints(
-  database: SQLiteDatabase = getDb(),
-): void {
+export function ensureCampaignsIntegrityConstraints(database: SQLiteDatabase = getDb()): void {
   // Soft-clean cached totals that violate the non-negative invariant so later
   // accounting UPDATEs succeed under the new rules. Do not invent target/pledge
   // history — those are application-owned.

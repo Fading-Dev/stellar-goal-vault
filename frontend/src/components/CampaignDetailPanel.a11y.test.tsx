@@ -54,9 +54,7 @@ const mockCampaign: Campaign = {
   metadata: {},
 };
 
-describe.each(THEMES)
-'CampaignDetailPanel Accessibility (%s theme)',
-(theme: ThemeMode) => {
+describe.each(THEMES)('CampaignDetailPanel Accessibility (%s theme)', (theme: ThemeMode) => {
   it('has no accessibility violations in empty state', async () => {
     const { container } = render(<CampaignDetailPanel campaign={null} appConfig={mockConfig} />);
 

@@ -203,7 +203,9 @@ describe('WalletWidget', () => {
         onSwitchWallet={noop}
       />,
     );
-    expect(screen.getByRole('group', { name: /Wallet status: connected to Freighter on Testnet/i })).toBeTruthy();
+    expect(
+      screen.getByRole('group', { name: /Wallet status: connected to Freighter on Testnet/i }),
+    ).toBeTruthy();
     expect(screen.getByText(/Wallet address:/)).toBeTruthy();
   });
 
@@ -244,7 +246,9 @@ describe('WalletWidget', () => {
     );
     expect(screen.queryByText('Testnet')).not.toBeTruthy();
     expect(screen.queryByText('Mainnet')).not.toBeTruthy();
-    expect(screen.getByRole('group', { name: /Wallet status: connected to Freighter$/i })).toBeTruthy();
+    expect(
+      screen.getByRole('group', { name: /Wallet status: connected to Freighter$/i }),
+    ).toBeTruthy();
   });
 
   it('uses "Wallet" as fallback wallet name when walletName is null', () => {
@@ -260,7 +264,9 @@ describe('WalletWidget', () => {
         onSwitchWallet={noop}
       />,
     );
-    expect(screen.getByRole('group', { name: /Wallet status: connected to Wallet$/i })).toBeTruthy();
+    expect(
+      screen.getByRole('group', { name: /Wallet status: connected to Wallet$/i }),
+    ).toBeTruthy();
   });
 
   it('connect button shows Wallet icon with Connect Wallet text', () => {
@@ -276,7 +282,9 @@ describe('WalletWidget', () => {
         onSwitchWallet={noop}
       />,
     );
-    expect(screen.getByRole('button', { name: /Connect Freighter wallet/i })).toHaveTextContent(/Connect Wallet/i);
+    expect(screen.getByRole('button', { name: /Connect Freighter wallet/i })).toHaveTextContent(
+      /Connect Wallet/i,
+    );
   });
 
   it('renders copy button for connected wallet address', () => {

@@ -31,7 +31,7 @@ export function WalletPickerModal({
           setIsLoading(false);
         })
         .catch(() => {
-          setWallets(Object.values(WALLET_INFO).map(w => ({ ...w, detected: false })));
+          setWallets(Object.values(WALLET_INFO).map((w) => ({ ...w, detected: false })));
           setIsLoading(false);
         });
     }
@@ -51,7 +51,7 @@ export function WalletPickerModal({
       }
       if (e.key === 'Tab' && modalRef.current) {
         const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         if (focusable.length === 0) return;
         const first = focusable[0];
@@ -106,7 +106,7 @@ export function WalletPickerModal({
             <div className="wallet-list" role="list" aria-label="Available wallets">
               {wallets.map((wallet) => {
                 const isConnectingThis = connectingWallet === wallet.id;
-                
+
                 return (
                   <button
                     key={wallet.id}

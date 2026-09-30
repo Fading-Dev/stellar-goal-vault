@@ -104,11 +104,17 @@ export function CampaignDetailPanel({
   const handleCopyLink = useCallback(() => {
     if (!campaign) return;
     const url = `${window.location.origin}/campaigns/${campaign.id}`;
-    navigator.clipboard.writeText(url).then(() => {
-      addToast('Campaign link copied to clipboard.', 'success', { href: url, label: url.slice(0, 40) + '…'});
-    }).catch(() => {
-      addToast('Failed to copy link.', 'error');
-    });
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        addToast('Campaign link copied to clipboard.', 'success', {
+          href: url,
+          label: url.slice(0, 40) + '…',
+        });
+      })
+      .catch(() => {
+        addToast('Failed to copy link.', 'error');
+      });
   }, [campaign, addToast]);
 
   useEffect(() => {
@@ -167,7 +173,8 @@ export function CampaignDetailPanel({
         <div className="section-heading">
           <h2>Campaign not found</h2>
           <p className="muted">
-            The campaign <code>#${notFoundCampaignId}</code> does not exist or may have been removed.
+            The campaign <code>#${notFoundCampaignId}</code> does not exist or may have been
+            removed.
           </p>
         </div>
         <div style={{ marginTop: 24 }}>
@@ -247,9 +254,7 @@ export function CampaignDetailPanel({
   return (
     <section className="card detail-panel" aria-labelledby="campaign-detail-title">
       {/* Full-width Campaign Banner */}
-      <div
-        className="campaign-detail-banner"
-      >
+      <div className="campaign-detail-banner">
         {activeCampaign.metadata?.imageUrl && !bannerImageError ? (
           <img
             src={activeCampaign.metadata.imageUrl}
@@ -267,7 +272,9 @@ export function CampaignDetailPanel({
 
       <div className="wallet-status" role="group" aria-labelledby="wallet-status-title">
         <div>
-          <h3 id="wallet-status-title" className="wallet-status-title">Wallet status</h3>
+          <h3 id="wallet-status-title" className="wallet-status-title">
+            Wallet status
+          </h3>
           <p className="muted">
             {connectedWallet
               ? `Connected to ${networkName(appConfig)}`
@@ -340,11 +347,19 @@ export function CampaignDetailPanel({
         </article>
         <article className="detail-stat">
           <span>Time left</span>
-          <strong><Countdown deadline={activeCampaign.deadline} /></strong>
+          <strong>
+            <Countdown deadline={activeCampaign.deadline} />
+          </strong>
         </article>
       </div>
 
-      <Suspense fallback={<div className="contributor-summary" aria-busy="true">Loading contributors …</div>}>
+      <Suspense
+        fallback={
+          <div className="contributor-summary" aria-busy="true">
+            Loading contributors …
+          </div>
+        }
+      >
         <ContributorSummary
           campaignId={activeCampaign.id}
           assetCode={activeCampaign.assetCode}
@@ -359,12 +374,7 @@ export function CampaignDetailPanel({
         </p>
       ) : null}
 
-      <form
-        className="form-grid"
-        aria-label="Pledge form"
-        onSubmit={handlePledge}
-        noValidate
-      >
+      <form className="form-grid" aria-label="Pledge form" onSubmit={handlePledge} noValidate>
         <div className="form-field">
           <label htmlFor="pledge-amount">Amount</label>
           <input
@@ -406,12 +416,7 @@ export function CampaignDetailPanel({
         </div>
 
         {pledgeError ? (
-          <div
-            ref={pledgeErrorRef}
-            className="form-error"
-            role="alert"
-            tabIndex={-1}
-          >
+          <div ref={pledgeErrorRef} className="form-error" role="alert" tabIndex={-1}>
             {pledgeError}
           </div>
         ) : null}
@@ -437,7 +442,7 @@ export function CampaignDetailPanel({
             type="text"
             value={refundContributor}
             onChange={(e) => setRefundContributor(e.target.value)}
-            placeholder="G"..."
+            placeholder="G..."
             aria-description="refund-contributor-help"
           />
           <small id="refund-contributor-help" className="muted">
