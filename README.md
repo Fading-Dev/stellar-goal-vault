@@ -281,6 +281,9 @@ Base URL:
 ### `GET /api/campaigns`
 
 - Returns all campaigns with computed progress
+- Optional `page` and `limit` parameters enable pagination; provide both, with `limit` from 1 to 100. Invalid values or only one parameter return `400`.
+- Omitting both parameters preserves the default and returns the full filtered campaign list.
+- Paginated responses include total pages and `hasPreviousPage` / `hasNextPage` navigation flags.
 - Query parameters:
   - `q` (optional): Search query to filter campaigns by title, creator, or campaign ID (case-insensitive)
   - `asset` (optional): Filter campaigns by asset code (e.g., USDC, XLM)

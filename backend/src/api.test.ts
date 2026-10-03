@@ -291,6 +291,56 @@ describe('Campaign List Query Parameter Validation', () => {
     return { status: response.status, data };
   }
 
+  it('returns navigation metadata and preserves the unpaginated default', async () => {
+    const shared = {
+      creator: CREATOR,
+      description: 'A campaign for testing list pagination behavior.',
+      acceptedTokens: ['USDC'],
+      targetAmount: 100,
+      deadline: nowInMockSeconds() + 3600,
+    };
+
+    for (const suffix of ['one', 'two', 'three']) {
+      const created = await post('/api/campaigns', {
+        ...shared,
+        title: `Pagination navigation check ${suffix}`,
+      });
+      expect(created.status).toBe(201);
+    }
+
+    const firstPage = await get('/api/campaigns?q=Pagination%20navigation%20check&page=1&limit=2');
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.data.pagination).toMatchObject({
+      total: 3,
+      page: 1,
+      limit: 2,
+      totalPages: 2,
+      hasPreviousPage: false,
+      hasNextPage: true,
+    });
+
+    const lastPage = await get('/api/campaigns?q=Pagination%20navigation%20check&page=2&limit=2');
+    expect(lastPage.status).toBe(200);
+    expect(lastPage.data.pagination).toMatchObject({
+      page: 2,
+      totalPages: 2,
+      hasPreviousPage: true,
+      hasNextPage: false,
+    });
+
+    const unpaginated = await get('/api/campaigns?q=Pagination%20navigation%20check');
+    expect(unpaginated.status).toBe(200);
+    expect(unpaginated.data.data).toHaveLength(3);
+    expect(unpaginated.data.pagination).toMatchObject({
+      total: 3,
+      page: 1,
+      limit: 3,
+      totalPages: 1,
+      hasPreviousPage: false,
+      hasNextPage: false,
+    });
+  });
+
   it('returns 400 for invalid page parameter', async () => {
     const res = await get('/api/campaigns?page=invalid&limit=10');
     expect(res.status).toBe(400);

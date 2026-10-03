@@ -514,7 +514,14 @@ app.get('/api/campaigns', async (req: Request, res: Response, next: express.Next
     if (cached) {
       const cachedData = JSON.parse(cached) as {
         data: CampaignListItem[];
-        pagination: { total: number; page: number; limit: number; totalPages: number };
+        pagination: {
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+          hasPreviousPage: boolean;
+          hasNextPage: boolean;
+        };
       };
       res.setHeader('Cache-Control', 'max-age=30');
       res.setHeader('X-Cache', 'HIT');
@@ -554,15 +561,18 @@ app.get('/api/campaigns', async (req: Request, res: Response, next: express.Next
     const limit = params.limit ?? totalCount;
     const totalPages =
       params.limit === undefined || limit <= 0 ? 1 : Math.max(1, Math.ceil(totalCount / limit));
+    const pagination = {
+      total: totalCount,
+      page,
+      limit,
+      totalPages,
+      hasPreviousPage: params.limit !== undefined && page > 1 && totalCount > 0,
+      hasNextPage: params.limit !== undefined && page < totalPages,
+    };
 
     const responseBody = JSON.stringify({
       data,
-      pagination: {
-        total: totalCount,
-        page,
-        limit,
-        totalPages,
-      },
+      pagination,
     });
 
     await setCampaignCacheEntry(cacheKey, responseBody);
@@ -574,7 +584,7 @@ app.get('/api/campaigns', async (req: Request, res: Response, next: express.Next
     res.send(
       JSON.stringify({
         data,
-        pagination: { total: totalCount, page, limit, totalPages },
+        pagination,
         requestId: (req as RequestWithId).requestId,
       }),
     );

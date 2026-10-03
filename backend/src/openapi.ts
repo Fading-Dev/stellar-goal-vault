@@ -64,6 +64,17 @@ const paginationSchema = z.object({
   totalPages: z.number().int().openapi({ description: 'Total number of pages.', example: 5 }),
 });
 
+const campaignListPaginationSchema = paginationSchema.extend({
+  hasPreviousPage: z.boolean().openapi({
+    description: 'Whether a previous page exists for this paginated request.',
+    example: false,
+  }),
+  hasNextPage: z.boolean().openapi({
+    description: 'Whether a later page exists for this paginated request.',
+    example: true,
+  }),
+});
+
 const apiErrorSchema = z.object({
   success: z.literal(false),
   error: z.object({
@@ -249,7 +260,7 @@ const contributorAddressParamSchema = stellarAddressSchema.openapi({
 const campaignListResponseSchema = z
   .object({
     data: z.array(campaignSchema),
-    pagination: paginationSchema,
+    pagination: campaignListPaginationSchema,
     requestId: z.string().openapi({
       description: 'Correlation ID also returned in the X-Request-Id response header.',
       example: 'req-123',
@@ -529,7 +540,8 @@ registry.registerPath({
   path: '/api/campaigns',
   tags: ['Campaigns'],
   summary: 'List campaigns',
-  description: 'List campaigns with optional filtering, sorting, and pagination.',
+  description:
+    'List campaigns with optional filtering, sorting, and pagination. Omit both page and limit to return the full filtered set; when paginating, provide both and use a limit from 1 to 100.',
   request: {
     query: z.object({
       page: z.coerce
@@ -537,14 +549,18 @@ registry.registerPath({
         .int()
         .min(1)
         .optional()
-        .openapi({ description: 'Page number (requires limit).' }),
+        .openapi({
+          description: '1-based page number. Requires limit; omit page and limit for all results.',
+        }),
       limit: z.coerce
         .number()
         .int()
         .min(1)
         .max(100)
         .optional()
-        .openapi({ description: 'Items per page (requires page).' }),
+        .openapi({
+          description: 'Items per page, from 1 to 100. Requires page; omit page and limit for all results.',
+        }),
       q: z.string().optional().openapi({ description: 'Search query (title, creator, or id).' }),
       search: z.string().optional().openapi({ description: 'Alias for q.' }),
       asset: z.string().optional().openapi({ description: 'Comma-separated list of asset codes.' }),
