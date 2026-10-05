@@ -15,6 +15,7 @@ import {
   ReconcilePledgePayload,
   SorobanRefundMetadata,
 } from '../types/campaign';
+import { HISTORY_PAGE_SIZE, sortHistoryEvents } from '../lib/campaignDetailLoading';
 import { apiRequest } from './httpClient';
 
 export type CampaignListResponse = {
@@ -161,7 +162,7 @@ export async function refundCampaign(
   return body.data;
 }
 
-const HISTORY_DEFAULT_PAGE_SIZE = 20;
+const HISTORY_DEFAULT_PAGE_SIZE = HISTORY_PAGE_SIZE;
 
 export async function getCampaignHistoryPage(
   campaignId: string,
@@ -174,16 +175,17 @@ export async function getCampaignHistoryPage(
     method: 'GET',
     params: { page, pageSize },
   });
-  // Backend returns in stable order; re-sort by timestamp/id to preserve ordering across chunks
-  const sorted = [...body.data].sort(
-    (left, right) => left.timestamp - right.timestamp || left.id - right.id,
-  );
-  return { data: sorted, hasMore: body.hasMore };
+  // Backend returns in stable order; re-sort through the shared helper so this
+  // transport layer and the detail panel cannot drift apart on ordering.
+  return { data: sortHistoryEvents(body.data), hasMore: body.hasMore };
 }
 
 export async function getCampaignHistory(campaignId: string): Promise<CampaignEvent[]> {
   // Bounded initial fetch for legacy callers; preserves ordering via getCampaignHistoryPage
-  const { data } = await getCampaignHistoryPage(campaignId, { page: 1, pageSize: HISTORY_DEFAULT_PAGE_SIZE });
+  const { data } = await getCampaignHistoryPage(campaignId, {
+    page: 1,
+    pageSize: HISTORY_DEFAULT_PAGE_SIZE,
+  });
   return data;
 }
 
@@ -203,9 +205,13 @@ export async function getDistinctAssetCodes(): Promise<string[]> {
   return body.data;
 }
 
-export async function listNotifications(wallet: string, options?: {
-  limit?: number; offset?: number;
-}): Promise<{ data: NotificationItem[]; total: number; unreadCount: number }> {
+export async function listNotifications(
+  wallet: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+  },
+): Promise<{ data: NotificationItem[]; total: number; unreadCount: number }> {
   const params = new URLSearchParams({ wallet });
   if (options?.limit) params.set('limit', String(options.limit));
   if (options?.offset) params.set('offset', String(options.offset));
@@ -334,7 +340,11 @@ export async function getContributorProfile(address: string): Promise<Contributo
       // All pledges in the array belong to the same campaign, so metadata is consistent
       const firstPledge = campaignPledges[0];
       const title = firstPledge.campaignName || 'Unknown Campaign';
-      const status = firstPledge.claimedAt ? 'claimed' : firstPledge.pledgedAmount >= firstPledge.targetAmount ? 'funded' : 'open';
+      const status = firstPledge.claimedAt
+        ? 'claimed'
+        : firstPledge.pledgedAmount >= firstPledge.targetAmount
+          ? 'funded'
+          : 'open';
       const assetCode = firstPledge.assetCode || 'USDC';
 
       for (const pledge of campaignPledges) {

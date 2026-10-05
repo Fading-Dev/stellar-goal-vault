@@ -1,8 +1,15 @@
 # SQLite Schema Contract
 
-`db.ts` is the authoritative migration runner. `initDb()` applies its
-idempotent schema changes to the configured SQLite database on every startup.
-Migrations must preserve existing rows and remain safe to run more than once.
+The schema is defined by versioned SQL migrations in `backend/migrations/`.
+`initDb()` runs `migrate()`, which applies any pending migrations in version
+order and records each one in the `schema_migrations` table. Already-applied
+migrations are skipped. Migrations must preserve existing rows.
+
+The deterministic seed workflow in `seedDeterministic.ts` is a development
+reset, not a migration. It atomically clears campaign-owned notifications,
+comments, events, pledges, and campaigns (plus `campaigns_fts`) before
+inserting its fixed fixtures. It must delete dependent rows before campaigns
+and must not be used against production data.
 
 ## Ownership and invariants
 
@@ -17,30 +24,28 @@ Migrations must preserve existing rows and remain safe to run more than once.
 - `campaign_comments` owns user feedback. `campaign_id` references
   `campaigns(id)` and `deleted_at` is a soft-delete marker; comment rows are
   not physically removed as part of normal lifecycle operations.
+- `notifications` references `campaigns(id)` and is cleared by the seed wipe.
 - `campaigns_fts` is a derived search index maintained by triggers. It can be
   rebuilt from `campaigns` and is never the source of truth.
 
-## Query-layer integrity constraints (#888)
 
-The query layer (`getPledgesByContributor` and related reads) assumes persisted
-rows already satisfy a safe subset of application invariants. Those invariants
-are enforced at the database layer:
+## Pledges persistence integrity constraints (#873)
 
-| Table | Constraint (safe subset) |
+`pledges` is the source of truth for individual contributions. A safe subset of
+application invariants is enforced at the database layer so invalid rows cannot
+be persisted even if application validation is bypassed:
+
+| Constraint | Rule |
 | --- | --- |
-| `campaigns` | non-empty `creator`/`title`/`description`/`accepted_tokens_json`; `target_amount > 0`; `pledged_amount >= 0`; positive `deadline`/`created_at`; mutually exclusive `claimed_at`/`failed_at`; `max_per_contributor` null or `>= 0` |
-| `pledges` | non-empty `campaign_id`/`contributor`/`asset_code`; `amount > 0`; positive `created_at`; `refunded_at` null or `>= created_at` |
-| `campaign_events` | non-empty `campaign_id`/`event_type`; positive `timestamp`; `amount` null or `>= 0` |
-| `campaign_comments` | non-empty `campaign_id`/`author`/`content`; positive `created_at` |
+| Amount | `amount > 0` |
+| Identity fields | non-empty `contributor` and `asset_code` (after trim) |
+| Timestamps | positive `created_at`; `refunded_at > 0` when NOT NULL |
 
-Fresh databases receive these as `CHECK` constraints on `CREATE TABLE`. Existing
-databases receive equivalent `BEFORE INSERT/UPDATE` triggers
-(`*_query_integrity_*`) because SQLite cannot add `CHECK` via `ALTER TABLE`.
-Valid historical rows migrate unchanged; invalid inserts/updates are aborted.
-
-Query helpers also clamp pagination (`page >= 1`, `1 <= limit <= 100`) so
-`LIMIT`/`OFFSET` cannot go negative or unbounded.
-
+Fresh databases receive these as `BEFORE INSERT / BEFORE UPDATE` triggers
+(`pledges_persistence_integrity_*`, migration 005). Legacy databases receive the
+same triggers via `ensurePledgesIntegrityConstraints()` on every startup.
+No historical data repair is needed because all valid data already satisfies
+these rules — the triggers only block future invalid inserts or updates.
 
 ## Campaigns persistence integrity constraints (#868)
 
@@ -56,42 +61,66 @@ rows cannot be persisted even if application validation is bypassed:
 | Lifecycle | `claimed_at` and `failed_at` are mutually exclusive |
 | Cap | `max_per_contributor` is null or `>= 0` |
 
-Fresh databases receive these as `CHECK` constraints on `CREATE TABLE`. Existing
-databases receive equivalent `BEFORE INSERT/UPDATE` triggers
+Fresh databases receive these as `CHECK` constraints (migrations 001 and 002).
+All databases also receive equivalent `BEFORE INSERT/UPDATE` triggers
 (`campaigns_persistence_integrity_*`) because SQLite cannot add `CHECK` via
-`ALTER TABLE`. On migrate, negative `pledged_amount` values are soft-cleaned to
-`0` so valid accounting updates continue; other historical rows are left
-unchanged. Invalid inserts/updates are aborted.
+`ALTER TABLE`. The migration runner invokes the guard after schema upgrades so
+legacy datasets are cleaned only where the invariant is safe to repair, while
+invalid inserts and updates remain rejected at the database boundary. On
+migrate, negative `pledged_amount` values are soft-cleaned to `0` so valid
+accounting updates continue; other historical rows are left unchanged. Invalid
+inserts/updates are aborted.
 
-## Migration expectations
+## Migrations
 
-Use `CREATE TABLE/INDEX/TRIGGER IF NOT EXISTS` for new objects and guarded
-`ALTER TABLE` changes for existing objects, following the patterns in
-`db.ts`. Additive changes must account for databases created by older
-versions, backfill only when the existing data has a clear default, and avoid
-rewriting lifecycle or accounting history. Update the focused database test
-when a schema object or invariant changes.
+Each migration is a pair of files:
+
+- `NNN_name.sql` — the up script, applied once.
+- `NNN_name.down.sql` — the rollback script, which must restore the schema of
+  version `NNN - 1`.
+
+Versions are contiguous from `001`. The runner (`src/db/migrator.ts`) refuses
+to start if a version is missing, duplicated, or lacks a rollback script, or if
+an applied migration's file has been edited since it ran (its checksum is
+stored in `schema_migrations`). To change the schema, add a new migration; never
+edit one that has shipped.
+
+`migrate()` runs everything in one SQLite transaction, with each migration in
+its own savepoint, so a failure leaves the database at its previous version.
+Column additions must precede dependent partial and composite indexes.
+Backfill only when the existing data has a clear default, and avoid rewriting
+lifecycle or accounting history.
+
+To roll back, call `rollbackMigrations(db, targetVersion)`. It runs the down
+scripts newest first and removes their `schema_migrations` rows.
+
+### Databases created before versioned migrations
+
+Databases created before the runner existed have tables but no
+`schema_migrations` rows. On first startup, `upgradeLegacySchema()`
+(`src/db/legacySchema.ts`) idempotently brings them to the schema of
+`LEGACY_BASELINE_VERSION` (004). It adds missing columns, derives
+`accepted_tokens_json` from a legacy `asset_code`, removes duplicate
+transaction hashes, and backfills `campaigns_fts`. Migrations 001–004 are then
+recorded as applied. That module is frozen, so new schema work goes in
+migration files.
+
+### Startup invariants
+
+After migrations, `applyStartupInvariants()` runs on every startup. It
+backfills `pledges.token_id` and rebuilds the cached `campaigns.pledged_amount`.
+It also re-asserts the query-plan indexes and campaign integrity triggers with
+`IF NOT EXISTS`. It does not change the schema.
+
+Update the focused database tests (`src/db/versionedMigrations.test.ts`) when a
+schema object or invariant changes.
 
 ## Index Strategy
 
 Indexes are added based on concrete query plans for common read/write patterns.
-All indexes use `CREATE INDEX IF NOT EXISTS` to ensure idempotence.
+Indexes are created by migrations 001, 003, and 004. The startup invariants
+re-assert them with `CREATE INDEX IF NOT EXISTS`.
 
-### Campaign Indexes
-
-- `idx_campaigns_creator` on `campaigns(creator)`
-- `idx_campaigns_deadline` on `campaigns(deadline)`
-- `idx_campaigns_status` on `campaigns(claimed_at, failed_at, deleted_at)`
-
-### Pledge Indexes
-
-- `idx_pledges_campaign_id` on `pledges(campaign_id)`
-- `idx_pledges_contributor` on `pledges(contributor, created_at, id)`
-- `idx_pledges_transaction_hash` unique partial index on `pledges(transaction_hash)` where not null
-
-### Comment Indexes
-
-- `idx_campaign_comments_campaign_id` on `campaign_comments(campaign_id)`
 ### Campaign indexes
 
 - `idx_campaigns_creator` on `campaigns(creator)` — creator-scoped lookups.
@@ -139,3 +168,22 @@ Installed by `ensureQueryLayerIndexes()` for concrete application read plans:
   soft-deleted comment lists per campaign.
 - `idx_campaign_events_source` on `json_extract(blockchain_metadata, '$.source')` —
   filtering local vs soroban history events.
+
+### Migration-runner query indexes
+
+Created by migration 004 and re-asserted by `ensureMigrationRunnerIndexes()` to accelerate backfill, deduplication, and cached accounting query plans during schema upgrades:
+
+- `idx_pledges_token_id_null` partial index on `pledges(token_id)` where `token_id IS NULL` — speeds legacy `token_id` backfill (`UPDATE pledges SET token_id = asset_code WHERE token_id IS NULL`).
+- `idx_pledges_campaign_refunded` covering index on `pledges(campaign_id, refunded_at)` — accelerates campaign `pledged_amount` recomputation (`UPDATE campaigns SET pledged_amount = ...`).
+- `idx_pledges_tx_hash_migration` partial index on `pledges(transaction_hash)` where `transaction_hash IS NOT NULL` — accelerates `transaction_hash` deduplication (`GROUP BY transaction_hash`).
+
+### Pledge query invariants (#891)
+
+Pledge writes use an SQLite `IMMEDIATE` transaction before reading contributor
+totals or campaign accounting. This reserves the writer before the cap checks,
+then re-reads campaign lifecycle and cap data inside the transaction. A second
+writer therefore cannot validate against the same stale pledged total. Pledge
+amounts must be finite, positive, and remain at least `0.01` after currency
+rounding. Rejected writes leave the pledge row, cached campaign total, and event
+history unchanged. Contributor summaries break equal-total ties by contributor
+address so query results are deterministic.

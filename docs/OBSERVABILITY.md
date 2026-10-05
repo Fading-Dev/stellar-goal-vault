@@ -63,7 +63,7 @@ operators can filter by `event == "http_request"` in one stream without cross-co
 | --- | --- | --- |
 | `event` | string | Always `http_request` |
 | `message` | string | `"<METHOD> <path> <status> <ms>ms"` |
-| `requestId` | string | Echoed in the `X-Request-ID` header and in error bodies |
+| `requestId` | string | Returned in the `X-Request-Id` response header and error bodies; generated per request when no inbound ID is supplied |
 | `method`, `path` | string | Request method and original URL |
 | `status` | number | HTTP status code (use this to determine severity) |
 | `duration_ms` | number | Non-negative, two decimals |
@@ -93,3 +93,5 @@ messages.
 ## Not covered
 
 Address fields (`address`, `creator`) are redacted by the logger, so the tests do not assert them.
+
+For operator diagnostics and recovery steps, see the [Service Metrics Troubleshooting Runbook](SERVICE_METRICS_RUNBOOK.md).

@@ -105,6 +105,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  getDb().close();
   fs.rmSync(TEST_DB_PATH, { force: true });
 });
 
@@ -117,6 +118,7 @@ beforeEach(() => {
   db.prepare('DELETE FROM webhook_dead_letter_queue').run();
   db.prepare('DELETE FROM notifications').run();
   db.prepare('DELETE FROM campaign_events').run();
+  db.prepare('DELETE FROM notifications').run();
   db.prepare('DELETE FROM pledges').run();
   db.prepare('DELETE FROM notifications').run();
   db.prepare('DELETE FROM campaigns').run();
@@ -495,6 +497,26 @@ describe('addPledge – guard conditions', () => {
     );
   });
 
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 0.004])(
+    'rejects invalid or sub-cent pledge amount %s without mutating accounting',
+    (amount) => {
+      const c = createCampaign({
+        creator: CREATOR,
+        title: 'Invalid pledge amount',
+        description: 'desc',
+        assetCode: 'USDC',
+        targetAmount: 500,
+        deadline: future(),
+      });
+
+      expect(() => addPledge(c.id, { contributor: CONTRIBUTOR, amount })).toThrow(
+        'Pledge amount must',
+      );
+      expect(getCampaign(c.id)?.pledgedAmount).toBe(0);
+      expect(getPledges(c.id)).toHaveLength(0);
+    },
+  );
+
   it('contributor limit is per-contributor, not global', () => {
     const c = createCampaign({
       creator: CREATOR,
@@ -690,9 +712,9 @@ describe('claimCampaign – guards', () => {
     const c = fundedExpiredCampaign();
     claimCampaign(c.id, { creator: CREATOR, transactionHash: TX_HASH });
     const first = getCampaign(c.id)!.claimedAt;
-    expect(() =>
-      claimCampaign(c.id, { creator: CREATOR, transactionHash: TX_HASH2 }),
-    ).toThrow('Campaign already claimed');
+    expect(() => claimCampaign(c.id, { creator: CREATOR, transactionHash: TX_HASH2 })).toThrow(
+      'Campaign already claimed',
+    );
     // claimedAt must remain unchanged after failed double-claim
     expect(getCampaign(c.id)!.claimedAt).toBe(first);
   });
@@ -993,6 +1015,23 @@ describe('getGlobalStats – status bucket counting', () => {
 // getContributorSummary — isFullyRefunded flag mutations
 // ═════════════════════════════════════════════════════════════════════════════
 describe('getContributorSummary – isFullyRefunded flag', () => {
+  it('orders equal active totals by contributor address deterministically', () => {
+    const c = createCampaign({
+      creator: CREATOR,
+      title: 'Stable contributor summary',
+      description: 'desc',
+      assetCode: 'USDC',
+      targetAmount: 500,
+      deadline: future(),
+    });
+    addPledge(c.id, { contributor: CONTRIBUTOR2, amount: 50 });
+    addPledge(c.id, { contributor: CONTRIBUTOR, amount: 50 });
+
+    expect(getContributorSummary(c.id).map((entry) => entry.contributor)).toEqual(
+      [CONTRIBUTOR, CONTRIBUTOR2].sort(),
+    );
+  });
+
   it('isFullyRefunded is false when contributor has active pledges', () => {
     const c = createCampaign({
       creator: CREATOR,

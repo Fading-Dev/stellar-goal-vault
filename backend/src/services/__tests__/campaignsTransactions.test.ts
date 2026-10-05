@@ -41,6 +41,8 @@ let getCampaign: CampaignStoreModule['getCampaign'];
 let listCampaigns: CampaignStoreModule['listCampaigns'];
 let softDeleteCampaign: CampaignStoreModule['softDeleteCampaign'];
 let restoreCampaign: CampaignStoreModule['restoreCampaign'];
+let addPledge: CampaignStoreModule['addPledge'];
+let getPledges: CampaignStoreModule['getPledges'];
 let setCurrentTime: CampaignStoreModule['setCurrentTime'];
 let resetTime: CampaignStoreModule['resetTime'];
 let getDb: DbModule['getDb'];
@@ -69,6 +71,8 @@ beforeAll(async () => {
     listCampaigns,
     softDeleteCampaign,
     restoreCampaign,
+    addPledge,
+    getPledges,
     setCurrentTime,
     resetTime,
   } = await import('../campaignStore'));
@@ -79,6 +83,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  getDb().close();
   fs.rmSync(TEST_DB_PATH, { force: true });
 });
 
@@ -159,7 +164,9 @@ describe('softDeleteCampaign – transaction rollback (#870)', () => {
     const refreshed = getCampaign(campaign.id);
     expect(refreshed?.deletedAt).toBeUndefined();
 
-    const archivedEvents = getCampaignHistory(campaign.id).filter((e) => e.eventType === 'archived');
+    const archivedEvents = getCampaignHistory(campaign.id).filter(
+      (e) => e.eventType === 'archived',
+    );
     expect(archivedEvents).toHaveLength(0);
   });
 
@@ -176,7 +183,9 @@ describe('softDeleteCampaign – transaction rollback (#870)', () => {
     const deleted = softDeleteCampaign(campaign.id);
     expect(deleted.deletedAt).toBeDefined();
 
-    const archivedEvents = getCampaignHistory(campaign.id).filter((e) => e.eventType === 'archived');
+    const archivedEvents = getCampaignHistory(campaign.id).filter(
+      (e) => e.eventType === 'archived',
+    );
     expect(archivedEvents).toHaveLength(1);
   });
 });
@@ -195,7 +204,9 @@ describe('restoreCampaign – transaction rollback (#870)', () => {
     expect(() => restoreCampaign(campaign.id)).toThrow('Simulated restored event failure');
 
     expect(getCampaign(campaign.id)?.deletedAt).toBeDefined();
-    const restoredEvents = getCampaignHistory(campaign.id).filter((e) => e.eventType === 'restored');
+    const restoredEvents = getCampaignHistory(campaign.id).filter(
+      (e) => e.eventType === 'restored',
+    );
     expect(restoredEvents).toHaveLength(0);
   });
 
@@ -213,10 +224,32 @@ describe('restoreCampaign – transaction rollback (#870)', () => {
     const restored = restoreCampaign(campaign.id);
     expect(restored.deletedAt).toBeUndefined();
 
-    const restoredEvents = getCampaignHistory(campaign.id).filter((e) => e.eventType === 'restored');
+    const restoredEvents = getCampaignHistory(campaign.id).filter(
+      (e) => e.eventType === 'restored',
+    );
     expect(restoredEvents).toHaveLength(1);
 
     const { campaigns } = listCampaigns({});
     expect(campaigns.some((c) => c.id === campaign.id)).toBe(true);
+  });
+});
+
+describe('addPledge – accounting transaction rollback (#891)', () => {
+  it('rolls back the pledge row and campaign total when event persistence fails', async () => {
+    const campaign = createCampaign(campaignBase({ targetAmount: 500 }));
+    const eventHistoryModule = await import('../eventHistory');
+    vi.spyOn(eventHistoryModule, 'recordEvent').mockImplementationOnce(() => {
+      throw new Error('Simulated pledge event failure');
+    });
+
+    expect(() => addPledge(campaign.id, { contributor: WALLETS.alice, amount: 125 })).toThrow(
+      'Simulated pledge event failure',
+    );
+
+    expect(getPledges(campaign.id)).toHaveLength(0);
+    expect(getCampaign(campaign.id)?.pledgedAmount).toBe(0);
+    expect(
+      getCampaignHistory(campaign.id).filter((event) => event.eventType === 'pledged'),
+    ).toHaveLength(0);
   });
 });
