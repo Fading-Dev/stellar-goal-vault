@@ -30,9 +30,7 @@ const STALE_LAG_MS = Number(process.env.SOROBAN_INDEXER_STALE_LAG_MS ?? 5 * 60 *
  * Lag at or below this (while healthy) is "fresh"; above it but below
  * STALE_LAG_MS is healthy-but-idle. Default: 2× poll interval.
  */
-const FRESH_LAG_MS = Number(
-  process.env.SOROBAN_INDEXER_FRESH_LAG_MS ?? POLL_INTERVAL_MS * 2,
-);
+const FRESH_LAG_MS = Number(process.env.SOROBAN_INDEXER_FRESH_LAG_MS ?? POLL_INTERVAL_MS * 2);
 
 /** Key used to store the last-processed ledger in the kv_store table. */
 const LAST_LEDGER_KEY = 'soroban_indexer_last_ledger';
@@ -393,6 +391,7 @@ let pollerTimer: ReturnType<typeof setTimeout> | null = null;
 let consecutiveFailures = 0;
 let lastSuccessfulPollTime: number | null = null;
 let lastKnownLedger: number | null = null;
+let lastErrorReason: string | null = null;
 
 export type IndexerFreshness = 'fresh' | 'idle' | 'stale' | 'failing' | 'never';
 
@@ -440,7 +439,22 @@ function scheduleNextPoll(delayMs: number): void {
   pollerTimer = setTimeout(async () => {
     try {
       await indexSorobanEvents();
+
+      if (consecutiveFailures > 0) {
+        logInfo(
+          'soroban_indexer_recovery',
+          {
+            message: `Indexer recovered after ${consecutiveFailures} consecutive failures.`,
+            retryCount: consecutiveFailures,
+            outcome: 'success',
+            lastErrorReason,
+          },
+          config.logLevel,
+        );
+      }
+
       consecutiveFailures = 0;
+      lastErrorReason = null;
       lastSuccessfulPollTime = Date.now();
       scheduleNextPoll(POLL_INTERVAL_MS);
     } catch (err) {
@@ -449,12 +463,17 @@ function scheduleNextPoll(delayMs: number): void {
         POLL_INTERVAL_MS * Math.pow(2, consecutiveFailures),
         MAX_BACKOFF_MS,
       );
+
+      const reason = err instanceof Error ? err.message : String(err);
+      lastErrorReason = reason;
+
       logError(
         err,
         {
           event: 'soroban_event_index_error',
           consecutiveFailures,
           nextRetryMs: backoffMs,
+          reason,
         },
         config.logLevel,
       );

@@ -5,8 +5,12 @@ import {
   signTransaction,
 } from '@stellar/freighter-api';
 import { xBullWalletConnect } from '@creit.tech/xbull-wallet-connect';
-import { getPublicKey as lobstrGetPublicKey, signTransaction as lobstrSignTransaction } from '@lobstrco/signer-extension-api';
+import {
+  getPublicKey as lobstrGetPublicKey,
+  signTransaction as lobstrSignTransaction,
+} from '@lobstrco/signer-extension-api';
 import { WalletConnection } from '../types/campaign';
+import { toSigningError } from './signingErrors';
 
 export type WalletType = 'freighter' | 'rabet' | 'xbull' | 'lobstr';
 
@@ -22,6 +26,8 @@ export interface WalletAdapter {
   connect: (expectedNetworkPassphrase: string) => Promise<WalletConnection>;
   sign: (xdr: string, networkPassphrase: string, publicKey: string) => Promise<string>;
   disconnect: () => Promise<void> | void;
+  /** Verifies the wallet's current network matches the expected network passphrase. */
+  checkNetwork: (expectedNetworkPassphrase: string) => Promise<{ match: boolean; currentNetwork?: string; expectedNetwork?: string }>;
 }
 
 const WALLET_INFO: Record<WalletType, Omit<WalletInfo, 'detected'>> = {
@@ -114,19 +120,23 @@ class FreighterAdapter implements WalletAdapter {
     }
 
     if (details?.networkPassphrase && details.networkPassphrase !== expectedNetworkPassphrase) {
-      const networkLabel = details.networkPassphrase === 'Test SDF Network ; September 2015'
-        ? 'Stellar Testnet'
-        : details.networkPassphrase === 'Public Global Stellar Network ; September 2015'
-        ? 'Stellar Mainnet'
-        : 'the configured network';
-      
-      const expectedLabel = expectedNetworkPassphrase === 'Test SDF Network ; September 2015'
-        ? 'Stellar Testnet'
-        : expectedNetworkPassphrase === 'Public Global Stellar Network ; September 2015'
-        ? 'Stellar Mainnet'
-        : 'the configured network';
+      const networkLabel =
+        details.networkPassphrase === 'Test SDF Network ; September 2015'
+          ? 'Stellar Testnet'
+          : details.networkPassphrase === 'Public Global Stellar Network ; September 2015'
+            ? 'Stellar Mainnet'
+            : 'the configured network';
 
-      throw new Error(`Freighter is connected to ${networkLabel}, but this app expects ${expectedLabel}.`);
+      const expectedLabel =
+        expectedNetworkPassphrase === 'Test SDF Network ; September 2015'
+          ? 'Stellar Testnet'
+          : expectedNetworkPassphrase === 'Public Global Stellar Network ; September 2015'
+            ? 'Stellar Mainnet'
+            : 'the configured network';
+
+      throw new Error(
+        `Freighter is connected to ${networkLabel}, but this app expects ${expectedLabel}.`,
+      );
     }
 
     return {
@@ -137,14 +147,34 @@ class FreighterAdapter implements WalletAdapter {
   }
 
   async sign(xdr: string, networkPassphrase: string, publicKey: string): Promise<string> {
-    return await signTransaction(xdr, {
-      accountToSign: publicKey,
-      networkPassphrase,
-    });
+    try {
+      return await signTransaction(xdr, {
+        accountToSign: publicKey,
+        networkPassphrase,
+      });
+    } catch (error) {
+      throw toSigningError(error);
+    }
   }
 
   async disconnect(): Promise<void> {
     // Freighter doesn't have a disconnect method, just clear local state
+  }
+
+  async checkNetwork(expectedNetworkPassphrase: string): Promise<{ match: boolean; currentNetwork?: string; expectedNetwork?: string }> {
+    try {
+      const details = await getNetworkDetails();
+      const currentPassphrase = details.networkPassphrase;
+      const match = currentPassphrase === expectedNetworkPassphrase;
+      return {
+        match,
+        currentNetwork: currentPassphrase,
+        expectedNetwork: expectedNetworkPassphrase,
+      };
+    } catch {
+      // If we can't get network details, assume it matches to avoid blocking
+      return { match: true };
+    }
   }
 }
 
@@ -185,7 +215,7 @@ class RabetAdapter implements WalletAdapter {
       }
       return result.xdr;
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Rabet signing failed.');
+      throw toSigningError(error);
     }
   }
 
@@ -194,6 +224,11 @@ class RabetAdapter implements WalletAdapter {
     if (rabet && typeof rabet.disconnect === 'function') {
       await rabet.disconnect();
     }
+  }
+
+  async checkNetwork(expectedNetworkPassphrase: string): Promise<{ match: boolean; currentNetwork?: string; expectedNetwork?: string }> {
+    // Rabet doesn't expose network details; assume match to avoid blocking
+    return { match: true, expectedNetwork: expectedNetworkPassphrase };
   }
 }
 
@@ -212,7 +247,7 @@ class XbullAdapter implements WalletAdapter {
     try {
       const bridge = this.getBridge();
       const publicKey = await bridge.connect();
-      
+
       return {
         publicKey,
         networkPassphrase: expectedNetworkPassphrase,
@@ -227,13 +262,18 @@ class XbullAdapter implements WalletAdapter {
       const bridge = this.getBridge();
       return await bridge.sign({ xdr, publicKey, network: networkPassphrase });
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'xBull signing failed.');
+      throw toSigningError(error);
     }
   }
 
   async disconnect(): Promise<void> {
     // xBull doesn't have a disconnect method, just clear local state
     this.bridge = null;
+  }
+
+  async checkNetwork(expectedNetworkPassphrase: string): Promise<{ match: boolean; currentNetwork?: string; expectedNetwork?: string }> {
+    // xBull doesn't expose network details; assume match to avoid blocking
+    return { match: true, expectedNetwork: expectedNetworkPassphrase };
   }
 }
 
@@ -259,12 +299,17 @@ class LobstrAdapter implements WalletAdapter {
     try {
       return await lobstrSignTransaction(xdr);
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'LOBSTR signing failed.');
+      throw toSigningError(error);
     }
   }
 
   async disconnect(): Promise<void> {
     // LOBSTR doesn't have a disconnect method, just clear local state
+  }
+
+  async checkNetwork(expectedNetworkPassphrase: string): Promise<{ match: boolean; currentNetwork?: string; expectedNetwork?: string }> {
+    // LOBSTR doesn't expose network details; assume match to avoid blocking
+    return { match: true, expectedNetwork: expectedNetworkPassphrase };
   }
 }
 
@@ -294,8 +339,9 @@ async function detectWallets(): Promise<WalletInfo[]> {
   });
 
   // Detect xBull (check for window.xBullSDK or extension detection)
-  const xbullDetected = typeof (window as any).xBullSDK !== 'undefined' || 
-                       typeof (window as any).xBullWalletConnect !== 'undefined';
+  const xbullDetected =
+    typeof (window as any).xBullSDK !== 'undefined' ||
+    typeof (window as any).xBullWalletConnect !== 'undefined';
   results.push({
     ...WALLET_INFO.xbull,
     detected: xbullDetected,
@@ -303,7 +349,8 @@ async function detectWallets(): Promise<WalletInfo[]> {
 
   // Detect LOBSTR
   try {
-    const lobstrDetected = await (window as any).lobstrSignerExtensionApi?.isConnected?.() || false;
+    const lobstrDetected =
+      (await (window as any).lobstrSignerExtensionApi?.isConnected?.()) || false;
     results.push({
       ...WALLET_INFO.lobstr,
       detected: lobstrDetected,

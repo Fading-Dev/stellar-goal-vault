@@ -38,8 +38,7 @@ describe('eventIndexer observability', () => {
   });
 
   it('emits structured fields when the indexer starts', async () => {
-    const { startEventIndexer, stopEventIndexer } =
-      await import('../eventIndexer');
+    const { startEventIndexer, stopEventIndexer } = await import('../eventIndexer');
 
     startEventIndexer();
 
@@ -81,9 +80,7 @@ describe('eventIndexer observability', () => {
 
     const axios = await import('axios');
 
-    vi.spyOn(axios.default, 'post').mockRejectedValue(
-      new Error('RPC unavailable'),
-    );
+    vi.spyOn(axios.default, 'post').mockRejectedValue(new Error('RPC unavailable'));
 
     const { startEventIndexer, stopEventIndexer, getIndexerStatus } =
       await import('../eventIndexer');
@@ -98,6 +95,7 @@ describe('eventIndexer observability', () => {
         event: 'soroban_event_index_error',
         consecutiveFailures: expect.any(Number),
         nextRetryMs: expect.any(Number),
+        reason: 'RPC unavailable',
       }),
       expect.any(String),
     );
@@ -116,26 +114,43 @@ describe('eventIndexer observability', () => {
     expect(status.consecutiveFailures).toBeGreaterThanOrEqual(1);
     expect(status.isHealthy).toBe(false);
 
+    // Simulate recovery
+    vi.spyOn(axios.default, 'post').mockResolvedValueOnce({
+      data: { result: { latestLedger: 100, events: [] } },
+    });
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(logInfoMock).toHaveBeenCalledWith(
+      'soroban_indexer_recovery',
+      expect.objectContaining({
+        message: expect.stringContaining('Indexer recovered'),
+        retryCount: expect.any(Number),
+        outcome: 'success',
+        lastErrorReason: expect.any(String),
+      }),
+      expect.any(String),
+    );
+
     stopEventIndexer();
   });
 });
 
-  it('classifies freshness: failing / never / fresh / idle / stale', async () => {
-    const { classifyIndexerFreshness } = await import('../eventIndexer');
+it('classifies freshness: failing / never / fresh / idle / stale', async () => {
+  const { classifyIndexerFreshness } = await import('../eventIndexer');
 
-    expect(
-      classifyIndexerFreshness({ consecutiveFailures: 2, lagMs: 1000, running: true }),
-    ).toBe('failing');
-    expect(
-      classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: null, running: false }),
-    ).toBe('never');
-    expect(
-      classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: 1_000, running: true }),
-    ).toBe('fresh');
-    expect(
-      classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: 60_000, running: true }),
-    ).toBe('idle');
-    expect(
-      classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: 10 * 60_000, running: true }),
-    ).toBe('stale');
-  });
+  expect(classifyIndexerFreshness({ consecutiveFailures: 2, lagMs: 1000, running: true })).toBe(
+    'failing',
+  );
+  expect(classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: null, running: false })).toBe(
+    'never',
+  );
+  expect(classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: 1_000, running: true })).toBe(
+    'fresh',
+  );
+  expect(classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: 60_000, running: true })).toBe(
+    'idle',
+  );
+  expect(
+    classifyIndexerFreshness({ consecutiveFailures: 0, lagMs: 10 * 60_000, running: true }),
+  ).toBe('stale');
+});

@@ -64,6 +64,7 @@ beforeEach(() => {
   db.prepare(`DELETE FROM webhook_dead_letter_queue`).run();
   db.prepare(`DELETE FROM notifications`).run();
   db.prepare(`DELETE FROM campaign_events`).run();
+  db.prepare(`DELETE FROM notifications`).run();
   db.prepare(`DELETE FROM pledges`).run();
   db.prepare(`DELETE FROM notifications`).run();
   db.prepare(`DELETE FROM campaigns`).run();
@@ -107,7 +108,9 @@ describe('campaign store search', () => {
     });
 
     addPledge(campaign.id, { contributor: CONTRIBUTOR, amount: 100 });
-    getDb().prepare(`UPDATE campaigns SET deadline = ? WHERE id = ?`).run(FIXED_NOW - 5, campaign.id);
+    getDb()
+      .prepare(`UPDATE campaigns SET deadline = ? WHERE id = ?`)
+      .run(FIXED_NOW - 5, campaign.id);
 
     const claimedCampaign = claimCampaign(campaign.id, {
       creator: CREATOR,
@@ -162,7 +165,9 @@ describe('campaign store search', () => {
 
     expect(listCampaigns({ searchQuery: 'rocket' }).campaigns[0].id).toBe(campaign.id);
     expect(
-      listCampaigns({ searchQuery: campaign.creator }).campaigns.some((row) => row.id === campaign.id),
+      listCampaigns({ searchQuery: campaign.creator }).campaigns.some(
+        (row) => row.id === campaign.id,
+      ),
     ).toBe(true);
     expect(listCampaigns({ searchQuery: campaign.id }).campaigns[0].id).toBe(campaign.id);
   });
@@ -345,21 +350,25 @@ describe('campaign persistence regression tests', () => {
     });
 
     const db = getDb();
-    
+
     // Insert a pledge manually to simulate a potential conflict
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO pledges (campaign_id, contributor, amount, asset_code, transaction_hash, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(campaign.id, CONTRIBUTOR, 100, 'USDC', TX_HASH, FIXED_DEADLINE - 100);
+    `,
+    ).run(campaign.id, CONTRIBUTOR, 100, 'USDC', TX_HASH, FIXED_DEADLINE - 100);
 
     // Attempting to reconcile with the same transaction hash should fail or be handled
     // The current implementation uses idempotency, so we test that the constraint
     // is respected by the database layer if we try to insert directly
     expect(() => {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO pledges (campaign_id, contributor, amount, asset_code, transaction_hash, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(campaign.id, CONTRIBUTOR2, 50, 'USDC', TX_HASH, FIXED_DEADLINE - 90);
+      `,
+      ).run(campaign.id, CONTRIBUTOR2, 50, 'USDC', TX_HASH, FIXED_DEADLINE - 90);
     }).toThrow();
   });
 
@@ -395,5 +404,39 @@ describe('campaign persistence regression tests', () => {
     expect(campaign).toBeDefined();
     expect(campaign.title).toBe('Special Chars: <>&"\'');
     expect(campaign.description).toBe('Description with special chars: <>&"\'');
+  });
+});
+
+describe('campaign list stable pagination ordering', () => {
+  it('keeps chunks ordered, disjoint, and complete when the sort key ties', () => {
+    // Every campaign is created at the same mocked instant with identical
+    // target amounts, so the requested sort key cannot order them on its own —
+    // only the deterministic id tie-breaker can.
+    const created = Array.from({ length: 5 }, (_, index) =>
+      createCampaign({
+        creator: CREATOR,
+        title: `Stable pagination ${index + 1}`,
+        description: 'Campaign created to verify deterministic pagination across chunks.',
+        assetCode: 'USDC',
+        targetAmount: 100,
+        deadline: FIXED_DEADLINE,
+      }),
+    );
+
+    const pages = [1, 2, 3].map(
+      (page) => listCampaigns({ page, limit: 2, sort: 'targetAmount', order: 'desc' }).campaigns,
+    );
+    const ids = pages.flat().map((campaign) => campaign.id);
+
+    // No chunk repeats a campaign and the union of the chunks is the full list.
+    expect(ids).toHaveLength(created.length);
+    expect(new Set(ids).size).toBe(created.length);
+
+    // Tied rows fall back to the id tie-breaker in the requested direction.
+    const expected = created
+      .map((campaign) => Number(campaign.id))
+      .sort((a, b) => b - a)
+      .map((id) => String(id));
+    expect(ids).toEqual(expected);
   });
 });

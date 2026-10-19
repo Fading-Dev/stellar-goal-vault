@@ -1,5 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
-import { WalletType, WalletAdapter, getAdapter, getLastUsedWallet, setLastUsedWallet, clearLastUsedWallet, WALLET_INFO } from '../lib/wallet';
+import {
+  WalletType,
+  WalletAdapter,
+  getAdapter,
+  getLastUsedWallet,
+  setLastUsedWallet,
+  clearLastUsedWallet,
+  WALLET_INFO,
+} from '../lib/wallet';
 import { WalletConnection } from '../types/campaign';
 
 export type WalletStatus = 'checking' | 'unavailable' | 'available' | 'connected' | 'connecting';
@@ -18,6 +26,8 @@ export interface UseWalletResult {
   openPicker: () => void;
   isPickerOpen: boolean;
   closePicker: () => void;
+  /** Verify the connected wallet's current network matches the expected network. */
+  checkNetwork: (expectedNetworkPassphrase: string) => Promise<{ match: boolean; currentNetwork?: string; expectedNetwork?: string }>;
 }
 
 export function useWallet(): UseWalletResult {
@@ -39,33 +49,36 @@ export function useWallet(): UseWalletResult {
     setStatus('available');
   }, []);
 
-  const connect = useCallback(async (selectedWalletType: WalletType, expectedNetworkPassphrase: string) => {
-    setError(null);
-    setStatus('connecting');
-    
-    try {
-      // Disconnect current wallet if different
-      if (adapter && walletType && walletType !== selectedWalletType) {
-        await adapter.disconnect();
-      }
+  const connect = useCallback(
+    async (selectedWalletType: WalletType, expectedNetworkPassphrase: string) => {
+      setError(null);
+      setStatus('connecting');
 
-      const newAdapter = getAdapter(selectedWalletType);
-      const connection: WalletConnection = await newAdapter.connect(expectedNetworkPassphrase);
-      
-      setPublicKey(connection.publicKey);
-      setNetworkPassphrase(connection.networkPassphrase || expectedNetworkPassphrase);
-      setSorobanRpcUrl(connection.sorobanRpcUrl || null);
-      setWalletType(selectedWalletType);
-      setAdapter(newAdapter);
-      setLastUsedWallet(selectedWalletType);
-      setStatus('connected');
-      setIsPickerOpen(false);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to connect wallet.';
-      setError(message);
-      setStatus('available');
-    }
-  }, [adapter, walletType]);
+      try {
+        // Disconnect current wallet if different
+        if (adapter && walletType && walletType !== selectedWalletType) {
+          await adapter.disconnect();
+        }
+
+        const newAdapter = getAdapter(selectedWalletType);
+        const connection: WalletConnection = await newAdapter.connect(expectedNetworkPassphrase);
+
+        setPublicKey(connection.publicKey);
+        setNetworkPassphrase(connection.networkPassphrase || expectedNetworkPassphrase);
+        setSorobanRpcUrl(connection.sorobanRpcUrl || null);
+        setWalletType(selectedWalletType);
+        setAdapter(newAdapter);
+        setLastUsedWallet(selectedWalletType);
+        setStatus('connected');
+        setIsPickerOpen(false);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to connect wallet.';
+        setError(message);
+        setStatus('available');
+      }
+    },
+    [adapter, walletType],
+  );
 
   const disconnect = useCallback(() => {
     if (adapter) {
@@ -76,7 +89,7 @@ export function useWallet(): UseWalletResult {
         });
       }
     }
-    
+
     setPublicKey(null);
     setNetworkPassphrase(null);
     setSorobanRpcUrl(null);
@@ -95,6 +108,16 @@ export function useWallet(): UseWalletResult {
     setIsPickerOpen(false);
   }, []);
 
+  const checkNetwork = useCallback(
+    async (expectedNetworkPassphrase: string) => {
+      if (!adapter) {
+        return { match: false, expectedNetwork: expectedNetworkPassphrase };
+      }
+      return await adapter.checkNetwork(expectedNetworkPassphrase);
+    },
+    [adapter],
+  );
+
   const walletName = walletType ? WALLET_INFO[walletType].name : null;
 
   return {
@@ -110,5 +133,6 @@ export function useWallet(): UseWalletResult {
     openPicker,
     isPickerOpen,
     closePicker,
+    checkNetwork,
   };
 }
