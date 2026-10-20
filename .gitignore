@@ -2,8 +2,6 @@ node_modules/
 dist/
 .DS_Store
 *.log
-.env
-.env.local
 coverage/
 frontend/.vite/
 contracts/target/
@@ -12,3 +10,4 @@ backend/data/
 CLAUDE.md
 pr.md
 issue.md
+config.bat
