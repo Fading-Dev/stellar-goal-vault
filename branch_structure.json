@@ -1,0 +1,33 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "fix/issue-884-perf-add-query-indexes-for-seed-workflow",
+    "fix/issue-885-db-make-transactions-explicit-in-seed-workflow",
+    "fix/issue-888-db-add-integrity-constraints-for-query-layer",
+    "fix/issue-900-contract-add-boundary-validation-to-pledge",
+    "fix/issue-918-wallet-handle-network-mismatch-in-freighter",
+    "fix/perf-seed-workflow-indexes-884",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "fix/issue-884-perf-add-query-indexes-for-seed-workflow": "main",
+    "fix/issue-885-db-make-transactions-explicit-in-seed-workflow": "main",
+    "fix/issue-888-db-add-integrity-constraints-for-query-layer": "main",
+    "fix/issue-900-contract-add-boundary-validation-to-pledge": "main",
+    "fix/issue-918-wallet-handle-network-mismatch-in-freighter": "main",
+    "fix/perf-seed-workflow-indexes-884": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "fix/issue-884-perf-add-query-indexes-for-seed-workflow",
+    "fix/issue-885-db-make-transactions-explicit-in-seed-workflow",
+    "fix/issue-888-db-add-integrity-constraints-for-query-layer",
+    "fix/issue-900-contract-add-boundary-validation-to-pledge",
+    "fix/issue-918-wallet-handle-network-mismatch-in-freighter",
+    "fix/perf-seed-workflow-indexes-884",
+    "origin"
+  ]
+}
